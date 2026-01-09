@@ -1,0 +1,501 @@
+<?xml version="1.0" ?>
+<summary fileFormatVersion="101" isExclusive="true">
+	<methods>
+		<method id="okhttp3.HttpUrl$Builder addEncodedPathSegment(java.util.String)">
+			<flows>
+				<flow isAlias="false"> 
+					<from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Field"
+						AccessPath="[okhttp3.HttpUrl$Builder: java.lang.String path]"
+						AccessPathTypes="[java.lang.String]" />
+				</flow>
+				<flow isAlias="true" final="true">
+					<from sourceSinkType="Field"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="okhttp3.HttpUrl$Builder addEncodedPathSegments(java.util.String)">
+			<flows>
+				<flow isAlias="false"> 
+					<from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Field"
+						AccessPath="[okhttp3.HttpUrl$Builder: java.lang.String path]"
+						AccessPathTypes="[java.lang.String]" />
+				</flow>
+				<flow isAlias="true" final="true">
+					<from sourceSinkType="Field"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="okhttp3.HttpUrl$Builder addEncodedQueryParameter(java.util.String,java.util.String)">
+			<constraints>
+				<key sourceSinkType="Parameter" ParameterIndex="0" />
+			</constraints>
+			<flows>
+				<flow isAlias="false"> 
+					<from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Field"
+                        AccessPath="[okhttp3.HttpUrl$Builder: java.lang.String[] queryKeys]"
+                        AccessPathTypes="[java.lang.String[]]" />
+                </flow>
+				<flow isAlias="false"> 
+					<from sourceSinkType="Parameter" ParameterIndex="1" />
+					<to sourceSinkType="Field"
+                        AccessPath="[okhttp3.HttpUrl$Builder: java.lang.String[] queryValues]"
+                        AccessPathTypes="[java.lang.String[]]"
+                        constrained="true" />
+                </flow>
+				<flow isAlias="true" final="true">
+					<from sourceSinkType="Field"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="okhttp3.HttpUrl$Builder addPathSegment(java.util.String)">
+			<flows>
+				<flow isAlias="false"> 
+					<from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Field"
+						AccessPath="[okhttp3.HttpUrl$Builder: java.lang.String path]"
+						AccessPathTypes="[java.lang.String]" />
+				</flow>
+				<flow isAlias="true" final="true">
+					<from sourceSinkType="Field"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="okhttp3.HttpUrl$Builder addPathSegments(java.util.String)">
+			<flows>
+				<flow isAlias="false"> 
+					<from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Field"
+						AccessPath="[okhttp3.HttpUrl$Builder: java.lang.String path]"
+						AccessPathTypes="[java.lang.String]" />
+				</flow>
+				<flow isAlias="true" final="true">
+					<from sourceSinkType="Field"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="okhttp3.HttpUrl$Builder addQueryParameter(java.util.String,java.util.String)">
+			<constraints>
+				<key sourceSinkType="Parameter" ParameterIndex="0" />
+			</constraints>
+			<flows>
+				<flow isAlias="false"> 
+					<from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Field"
+                        AccessPath="[okhttp3.HttpUrl$Builder: java.lang.String[] queryKeys]"
+                        AccessPathTypes="[java.lang.String[]]" />
+                </flow>
+				<flow isAlias="false"> 
+					<from sourceSinkType="Parameter" ParameterIndex="1" />
+					<to sourceSinkType="Field"
+                        AccessPath="[okhttp3.HttpUrl$Builder: java.lang.String[] queryValues]"
+                        AccessPathTypes="[java.lang.String[]]"
+                        constrained="true" />
+                </flow>
+				<flow isAlias="true" final="true">
+					<from sourceSinkType="Field"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="okhttp3.HttpUrl build()">
+			<flows>
+				<flow isAlias="false"> 
+					<from sourceSinkType="Field"
+                        AccessPath="[okhttp3.HttpUrl$Builder: java.lang.String path]"
+                        AccessPathTypes="[java.lang.String]" />
+                    <to sourceSinkType="Return"
+						AccessPath="[okhttp3.HttpUrl: java.lang.String path]"
+						AccessPathTypes="[java.lang.String]" />
+				</flow>
+				<flow isAlias="false"> 
+					<from sourceSinkType="Field"
+                        AccessPath="[okhttp3.HttpUrl$Builder: java.lang.String fragment]"
+                        AccessPathTypes="[java.lang.String]" />
+                    <to sourceSinkType="Return"
+						AccessPath="[okhttp3.HttpUrl: java.lang.String fragment]"
+						AccessPathTypes="[java.lang.String]" />
+				</flow>
+				<flow isAlias="false"> 
+					<from sourceSinkType="Field"
+                        AccessPath="[okhttp3.HttpUrl$Builder: java.lang.String[] queryKeys]"
+                        AccessPathTypes="[java.lang.String[]]" />
+                    <to sourceSinkType="Return"
+						AccessPath="[okhttp3.HttpUrl: java.lang.String[] queryKeys]"
+						AccessPathTypes="[java.lang.String[]]" />
+				</flow>
+				<flow isAlias="false"> 
+					<from sourceSinkType="Field"
+                        AccessPath="[okhttp3.HttpUrl$Builder: java.lang.String[] queryValues]"
+                        AccessPathTypes="[java.lang.String[]]" />
+                    <to sourceSinkType="Return"
+						AccessPath="[okhttp3.HttpUrl: java.lang.String[] queryValues]"
+						AccessPathTypes="[java.lang.String[]]" />
+				</flow>
+				<flow isAlias="false"> 
+					<from sourceSinkType="Field"
+                        AccessPath="[okhttp3.HttpUrl$Builder: java.lang.String username]"
+                        AccessPathTypes="[java.lang.String]" />
+                    <to sourceSinkType="Return"
+						AccessPath="[okhttp3.HttpUrl: java.lang.String username]"
+						AccessPathTypes="[java.lang.String]" />
+				</flow>
+				<flow isAlias="false"> 
+					<from sourceSinkType="Field"
+                        AccessPath="[okhttp3.HttpUrl$Builder: java.lang.String password]"
+                        AccessPathTypes="[java.lang.String]" />
+                    <to sourceSinkType="Return"
+						AccessPath="[okhttp3.HttpUrl: java.lang.String password]"
+						AccessPathTypes="[java.lang.String]" />
+				</flow>
+				<flow isAlias="false"> 
+					<from sourceSinkType="Field"
+                        AccessPath="[okhttp3.HttpUrl$Builder: java.lang.String host]"
+                        AccessPathTypes="[java.lang.String]" />
+                    <to sourceSinkType="Return"
+						AccessPath="[okhttp3.HttpUrl: java.lang.String host]"
+						AccessPathTypes="[java.lang.String]" />
+				</flow>
+				<flow isAlias="false"> 
+					<from sourceSinkType="Field"
+                        AccessPath="[okhttp3.HttpUrl$Builder: int port]"
+                        AccessPathTypes="[int]" />
+                    <to sourceSinkType="Return"
+						AccessPath="[okhttp3.HttpUrl: int port]"
+						AccessPathTypes="[int]" />
+				</flow>
+            </flows>
+		</method>
+		<method id="okhttp3.HttpUrl$Builder encodedFragment(java.util.String)">
+			<flows>
+				<flow isAlias="false"> 
+					<from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Field"
+						AccessPath="[okhttp3.HttpUrl$Builder: java.lang.String fragment]"
+						AccessPathTypes="[java.lang.String]" />
+				</flow>
+				<flow isAlias="true" final="true">
+					<from sourceSinkType="Field"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="okhttp3.HttpUrl$Builder encodedPassword(java.util.String)">
+			<flows>
+				<flow isAlias="false"> 
+					<from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Field"
+						AccessPath="[okhttp3.HttpUrl$Builder: java.lang.String password]"
+						AccessPathTypes="[java.lang.String]" />
+				</flow>
+				<flow isAlias="true" final="true">
+					<from sourceSinkType="Field"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="okhttp3.HttpUrl$Builder encodedPath(java.util.String)">
+			<flows>
+				<flow isAlias="false"> 
+					<from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Field"
+						AccessPath="[okhttp3.HttpUrl$Builder: java.lang.String path]"
+						AccessPathTypes="[java.lang.String]" />
+				</flow>
+				<flow isAlias="true" final="true">
+					<from sourceSinkType="Field"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="okhttp3.HttpUrl$Builder encodedQuery(java.util.String)">
+			<flows>
+				<flow isAlias="false" typeChecking="false"> 
+					<from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Field"
+                        AccessPath="[okhttp3.HttpUrl$Builder: java.lang.String[] queryKeys]"
+                        AccessPathTypes="[java.lang.String[]]" />
+                </flow>
+				<flow isAlias="false" typeChecking="false"> 
+					<from sourceSinkType="Parameter" ParameterIndex="1" />
+					<to sourceSinkType="Field"
+                        AccessPath="[okhttp3.HttpUrl$Builder: java.lang.String[] queryValues]"
+                        AccessPathTypes="[java.lang.String[]]" />
+                </flow>
+				<flow isAlias="true" final="true">
+					<from sourceSinkType="Field"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="okhttp3.HttpUrl$Builder encodedUsername(java.util.String)">
+			<flows>
+				<flow isAlias="false"> 
+					<from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Field"
+						AccessPath="[okhttp3.HttpUrl$Builder: java.lang.String username]"
+						AccessPathTypes="[java.lang.String]" />
+				</flow>
+				<flow isAlias="true" final="true">
+					<from sourceSinkType="Field"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="okhttp3.HttpUrl$Builder fragment(java.util.String)">
+			<flows>
+				<flow isAlias="false"> 
+					<from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Field"
+						AccessPath="[okhttp3.HttpUrl$Builder: java.lang.String fragment]"
+						AccessPathTypes="[java.lang.String]" />
+				</flow>
+				<flow isAlias="true" final="true">
+					<from sourceSinkType="Field"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="okhttp3.HttpUrl$Builder host(java.util.String)">
+			<flows>
+				<flow isAlias="false"> 
+					<from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Field"
+						AccessPath="[okhttp3.HttpUrl$Builder: java.lang.String host]"
+						AccessPathTypes="[java.lang.String]" />
+				</flow>
+				<flow isAlias="true" final="true">
+					<from sourceSinkType="Field"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="okhttp3.HttpUrl$Builder password(java.util.String)">
+			<flows>
+				<flow isAlias="false"> 
+					<from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Field"
+						AccessPath="[okhttp3.HttpUrl$Builder: java.lang.String password]"
+						AccessPathTypes="[java.lang.String]" />
+				</flow>
+				<flow isAlias="true" final="true">
+					<from sourceSinkType="Field"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="okhttp3.HttpUrl$Builder port(int)">
+			<flows>
+				<flow isAlias="false"> 
+					<from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Field"
+						AccessPath="[okhttp3.HttpUrl$Builder: int port]"
+						AccessPathTypes="[int]" />
+				</flow>
+				<flow isAlias="true" final="true">
+					<from sourceSinkType="Field"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="okhttp3.HttpUrl$Builder query(java.util.String)">
+			<flows>
+				<flow isAlias="false" typeChecking="false"> 
+					<from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Field"
+                        AccessPath="[okhttp3.HttpUrl$Builder: java.lang.String[] queryKeys]"
+                        AccessPathTypes="[java.lang.String[]]" />
+                </flow>
+				<flow isAlias="false" typeChecking="false"> 
+					<from sourceSinkType="Parameter" ParameterIndex="1" />
+					<to sourceSinkType="Field"
+                        AccessPath="[okhttp3.HttpUrl$Builder: java.lang.String[] queryValues]"
+                        AccessPathTypes="[java.lang.String[]]" />
+                </flow>
+				<flow isAlias="true" final="true">
+					<from sourceSinkType="Field"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="okhttp3.HttpUrl$Builder removeAllEncodedQueryParameters(java.util.String)">
+			<constraints>
+				<key sourceSinkType="Parameter"
+					 ParameterIndex="0" />
+			</constraints>
+			<flows>
+				<flow isAlias="true" final="true">
+					<from sourceSinkType="Field"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+            <clears>
+				<clear sourceSinkType="Field"
+					   AccessPath="[java.util.Map: java.lang.String[] queryValues]"
+					   AccessPathTypes="[java.lang.String[]]"
+					   constrained="True"
+					   preventPropagation="false" />
+			</clears>
+        </method>
+		<method id="okhttp3.HttpUrl$Builder removeAllQueryParameters(java.util.String)">
+			<constraints>
+				<key sourceSinkType="Parameter"
+					 ParameterIndex="0" />
+			</constraints>
+			<flows>
+				<flow isAlias="true" final="true">
+					<from sourceSinkType="Field"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+			<clears>
+				<clear sourceSinkType="Field"
+					   AccessPath="[java.util.Map: java.lang.String[] queryValues]"
+					   AccessPathTypes="[java.lang.String[]]"
+					   constrained="True"
+					   preventPropagation="false" />
+			</clears>
+        </method>
+		<method id="okhttp3.HttpUrl$Builder removePathSegment(int)">
+			<flows>
+				<flow isAlias="true" final="true">
+					<from sourceSinkType="Field"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+        </method>
+		<method id="okhttp3.HttpUrl$Builder scheme(java.util.String)">
+			<flows>
+				<flow isAlias="false" typeChecking="false"> 
+					<from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Field"
+						AccessPath="[okhttp3.HttpUrl$Builder: int port]"
+						AccessPathTypes="[int]" />
+				</flow>
+				<flow isAlias="true" final="true">
+					<from sourceSinkType="Field"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="okhttp3.HttpUrl$Builder setEncodedPathSegment(java.util.String)">
+			<flows>
+				<flow isAlias="false"> 
+					<from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Field"
+						AccessPath="[okhttp3.HttpUrl$Builder: java.lang.String path]"
+						AccessPathTypes="[java.lang.String]" />
+				</flow>
+				<flow isAlias="true" final="true">
+					<from sourceSinkType="Field"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="okhttp3.HttpUrl$Builder setEncodedQueryParameter(java.util.String,java.util.String)">
+			<constraints>
+				<key sourceSinkType="Parameter" ParameterIndex="0" />
+			</constraints>
+			<flows>
+				<flow isAlias="false" final="true"> 
+					<from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Field"
+                        AccessPath="[okhttp3.HttpUrl$Builder: java.lang.String[] queryKeys]"
+                        AccessPathTypes="[java.lang.String[]]" />
+                </flow>
+				<flow isAlias="false" final="true"> 
+					<from sourceSinkType="Parameter" ParameterIndex="1" />
+					<to sourceSinkType="Field"
+                        AccessPath="[okhttp3.HttpUrl$Builder: java.lang.String[] queryValues]"
+                        AccessPathTypes="[java.lang.String[]]"
+                        constrained="true" />
+                </flow>
+				<flow isAlias="true" final="true">
+					<from sourceSinkType="Field"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+			<clears>
+				<clear sourceSinkType="Field"
+					   AccessPath="[java.util.Map: java.lang.Object[] values]"
+					   preventPropagation="false"
+				       constrained="true"
+					   isAlias="true" />
+			</clears>
+		</method>
+		<method id="okhttp3.HttpUrl$Builder setPathSegment(java.util.String)">
+			<flows>
+				<flow isAlias="false"> 
+					<from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Field"
+						AccessPath="[okhttp3.HttpUrl$Builder: java.lang.String path]"
+						AccessPathTypes="[java.lang.String]" />
+				</flow>
+				<flow isAlias="true" final="true">
+					<from sourceSinkType="Field"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="okhttp3.HttpUrl$Builder setQueryParameter(java.util.String,java.util.String)">
+			<constraints>
+				<key sourceSinkType="Parameter" ParameterIndex="0" />
+			</constraints>
+			<flows>
+				<flow isAlias="false" final="true"> 
+					<from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Field"
+                        AccessPath="[okhttp3.HttpUrl$Builder: java.lang.String[] queryKeys]"
+                        AccessPathTypes="[java.lang.String[]]" />
+                </flow>
+				<flow isAlias="false" final="true"> 
+					<from sourceSinkType="Parameter" ParameterIndex="1" />
+					<to sourceSinkType="Field"
+                        AccessPath="[okhttp3.HttpUrl$Builder: java.lang.String[] queryValues]"
+                        AccessPathTypes="[java.lang.String[]]"
+                        constrained="true" />
+                </flow>
+				<flow isAlias="true" final="true">
+					<from sourceSinkType="Field"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+			<clears>
+				<clear sourceSinkType="Field"
+					   AccessPath="[java.util.Map: java.lang.Object[] values]"
+					   preventPropagation="false"
+				       constrained="true"
+					   isAlias="true" />
+			</clears>
+		</method>
+		<method id="java.lang.String toString()">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Field"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="okhttp3.HttpUrl$Builder password(java.util.String)">
+			<flows>
+				<flow isAlias="false"> 
+					<from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Field"
+						AccessPath="[okhttp3.HttpUrl$Builder: java.lang.String password]"
+						AccessPathTypes="[java.lang.String]" />
+				</flow>
+				<flow isAlias="true" final="true">
+					<from sourceSinkType="Field"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+    </methods>
+</summary>

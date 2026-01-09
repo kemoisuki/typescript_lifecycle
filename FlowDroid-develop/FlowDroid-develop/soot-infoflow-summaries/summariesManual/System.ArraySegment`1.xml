@@ -1,0 +1,113 @@
+<?xml version="1.0" ?>
+<summary fileFormatVersion="101">
+	<hierarchy superClass="System.ValueType" />
+	<methods>
+
+		<method id="void &lt;init&gt;(System.Object[])">
+			<flows>
+                <flow isAlias="false" typeChecking="false">
+                    <from sourceSinkType="Parameter" ParameterIndex="0" />
+                    <to sourceSinkType="Field"
+                        AccessPath="[System.ArraySegment`1: java.lang.Object[] innerArray]"
+                        AccessPathTypes="[java.lang.Object[]]"
+                         />
+                </flow>
+			</flows>
+		</method>
+
+		<method id="void &lt;init&gt;(System.Object[],int,int)">
+			<flows>
+                <flow isAlias="false" typeChecking="false">
+                    <from sourceSinkType="Parameter" ParameterIndex="0" />
+                    <to sourceSinkType="Field"
+                        AccessPath="[System.ArraySegment`1: java.lang.Object[] innerArray]"
+                        AccessPathTypes="[java.lang.Object[]]"
+                         />
+                </flow>
+			</flows>
+		</method>
+
+		<method id="void CopyTo(System.Object[])">
+			<flows>
+                <flow isAlias="false" typeChecking="false">
+                    <from sourceSinkType="Parameter" ParameterIndex="0" />
+                    <to sourceSinkType="Field"
+                        AccessPath="[System.ArraySegment`1: java.lang.Object[] innerArray]"
+                        AccessPathTypes="[java.lang.Object[]]"
+                         />
+                </flow>
+			</flows>
+		</method>
+
+		<method id="void CopyTo(System.Object[],int)">
+			<flows>
+                <flow isAlias="false" typeChecking="false">
+                    <from sourceSinkType="Parameter" ParameterIndex="0" />
+                    <to sourceSinkType="Field"
+                        AccessPath="[System.ArraySegment`1: java.lang.Object[] innerArray]"
+                        AccessPathTypes="[java.lang.Object[]]"
+                         />
+                </flow>
+			</flows>
+		</method>
+
+		<method id="void CopyTo(System.ArraySegment`1)">
+			<flows>
+                <flow isAlias="false" typeChecking="false">
+                    <from sourceSinkType="Parameter" ParameterIndex="0" />
+                    <to sourceSinkType="Field"
+                        AccessPath="[System.ArraySegment`1: java.lang.Object[] innerArray]"
+                        AccessPathTypes="[java.lang.Object[]]"
+                         />
+                </flow>
+			</flows>
+		</method>
+
+
+		<method id="System.Object[] ToArray()">
+			<flows>
+                <flow isAlias="false" typeChecking="false">
+                    <from sourceSinkType="Field"
+                        AccessPath="[System.ArraySegment`1: java.lang.Object[] innerArray]"
+                        AccessPathTypes="[java.lang.Object[]]"
+                         />
+					<to sourceSinkType="Return" />
+                </flow>
+   			</flows>
+		</method>
+
+		<method id="System.ArraySegment`1 op_Implicit(System.Object[])">
+			<flows>
+				<flow isAlias="false">
+                    <from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		
+		<method id="System.ArraySegment`1 CreateDeepStructCopy()">
+			<flows>
+				<flow isAlias="false">
+                    <from sourceSinkType="Field"
+                        AccessPath="[System.ArraySegment`1: java.lang.Object[] innerArray]"
+                        AccessPathTypes="[java.lang.Object[]]"
+                         />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+
+
+		<method id="System.Object[] get_Array()">
+			<flows>
+				<flow isAlias="false">
+                    <from sourceSinkType="Field"
+                        AccessPath="[System.ArraySegment`1: java.lang.Object[] innerArray]"
+                        AccessPathTypes="[java.lang.Object[]]"
+                         />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+	</methods>
+</summary>

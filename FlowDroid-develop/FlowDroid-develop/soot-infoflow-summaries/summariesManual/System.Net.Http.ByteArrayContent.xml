@@ -1,0 +1,100 @@
+<?xml version="1.0" ?>
+<summary fileFormatVersion="101">
+	<hierarchy superClass="System.Net.Http.HttpContent" />
+	<methods>
+		<method id="void &lt;init&gt;(byte[])">
+			<flows>
+				<flow isAlias="false">
+					<from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Field"
+						AccessPath="[okhttp3.Request$Builder: java.lang.String[] headerKeys]"
+						AccessPathTypes="[java.lang.String[]]" />
+				</flow>
+			</flows>
+		</method>
+
+		<method id="void &lt;init&gt;(byte[],int,int)">
+			<flows>
+				<flow isAlias="false">
+					<from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Field"
+						AccessPath="[okhttp3.Request$Builder: java.lang.String[] headerKeys]"
+						AccessPathTypes="[java.lang.String[]]" />
+				</flow>
+			</flows>
+		</method>
+
+		<method id="void SerializeToStream(System.IO.Stream,System.Net.TransportContext,System.Threading.CancellationToken)">
+			<flows>
+				<flow isAlias="false">
+					<from sourceSinkType="Field" />
+					<to sourceSinkType="Parameter" ParameterIndex="0" />
+				</flow>
+			</flows>
+		</method>
+
+		<method id="System.Threading.Tasks.Task SerializeToStreamAsync(System.IO.Stream,System.Net.TransportContext)">
+			<flows>
+				<flow isAlias="false">
+					<from sourceSinkType="Field" />
+					<to sourceSinkType="Parameter" ParameterIndex="0" />
+				</flow>
+			</flows>
+		</method>
+
+		<method id="System.Threading.Tasks.Task SerializeToStreamAsync(System.IO.Stream,System.Net.TransportContext,System.Threading.CancellationToken)">
+			<flows>
+				<flow isAlias="false">
+					<from sourceSinkType="Field" />
+					<to sourceSinkType="Parameter" ParameterIndex="0" />
+				</flow>
+			</flows>
+		</method>
+
+		<method id="System.Threading.Tasks.Task SerializeToStreamAsyncCore(System.IO.Stream,System.Threading.CancellationToken)">
+			<flows>
+				<flow isAlias="false">
+					<from sourceSinkType="Field" />
+					<to sourceSinkType="Parameter" ParameterIndex="0" />
+				</flow>
+			</flows>
+		</method>
+
+
+		<method id="System.IO.Stream CreateContentReadStream(System.Threading.CancellationToken)">
+			<flows>
+				<flow isAlias="false">
+					<from sourceSinkType="Field" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+
+		<method id="System.Threading.Tasks.Task`1 CreateContentReadStreamAsync()">
+			<flows>
+				<flow isAlias="false">
+					<from sourceSinkType="Field" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+
+		<method id="System.IO.Stream TryCreateContentReadStream()">
+			<flows>
+				<flow isAlias="false">
+					<from sourceSinkType="Field" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+
+		<method id="System.IO.MemoryStream CreateMemoryStreamForByteArray()">
+			<flows>
+				<flow isAlias="false">
+					<from sourceSinkType="Field" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+	</methods>
+</summary>

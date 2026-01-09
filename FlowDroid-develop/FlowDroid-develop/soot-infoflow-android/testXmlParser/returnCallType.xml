@@ -1,0 +1,9 @@
+<sinkSources>
+    <category id="NO_CATEGORY">
+        <method callType="return" signature="android.content.ContentProvider: android.database.Cursor query(android.net.Uri,java.lang.String[],java.lang.String,java.lang.String[],java.lang.String)">
+            <return>
+                <accessPath isSource="false" isSink="true" />
+            </return>
+        </method>
+    </category>
+</sinkSources>

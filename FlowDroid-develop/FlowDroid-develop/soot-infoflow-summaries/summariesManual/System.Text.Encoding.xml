@@ -1,0 +1,251 @@
+<?xml version="1.0" ?>
+<summary fileFormatVersion="101">
+	<hierarchy superClass="System.ValueType" />
+	<methods>
+
+		<method id="byte[] Convert(System.Text.Encoding,System.Text.Encoding,byte[])">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+                    <from sourceSinkType="Parameter" ParameterIndex="2" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+
+		<method id="byte[] Convert(System.Text.Encoding,System.Text.Encoding,byte[],int,int)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+                    <from sourceSinkType="Parameter" ParameterIndex="2" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+
+		<method id="byte[] GetBytes(char[])">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+                    <from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Return" baseType="byte[]" />
+				</flow>
+			</flows>
+		</method>
+
+		<method id="byte[] GetBytes(char[],int,int)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+                    <from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+
+		<method id="int GetBytes(char[],int,int,byte[],int)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+                    <from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+
+		<method id="byte[] GetBytes(System.String)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+                    <from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+
+		<method id="byte[] GetBytes(System.String,int,int)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+                    <from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+
+		<method id="int GetBytes(System.String,int,int,byte[],int)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+                    <from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+
+		<method id="int GetBytes(char,int,byte,int)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+                    <from sourceSinkType="Parameter" ParameterIndex="0" />
+                    <to sourceSinkType="Parameter" ParameterIndex="2" />
+				</flow>
+			</flows>
+		</method>
+
+		<method id="int GetBytes(System.ReadOnlySpan`1,System.Span`1)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+                    <from sourceSinkType="Parameter" ParameterIndex="0" />
+                    <to sourceSinkType="Parameter" ParameterIndex="1" />
+				</flow>
+			</flows>
+		</method>
+
+		<method id="char[] GetChars(byte[])">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+                    <from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+
+		<method id="char[] GetChars(byte[],int,int)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+                    <from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+
+		<method id="int GetChars(byte[],int,int,char[],int)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+                    <from sourceSinkType="Parameter" ParameterIndex="0" />
+                    <to sourceSinkType="Parameter" ParameterIndex="3" />
+				</flow>
+			</flows>
+		</method>
+
+		<method id="int GetChars(byte,int,char,int)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+                    <from sourceSinkType="Parameter" ParameterIndex="0" />
+                    <to sourceSinkType="Parameter" ParameterIndex="2" />
+				</flow>
+			</flows>
+		</method>
+
+		<method id="int GetChars(System.ReadOnlySpan`1,System.Span`1)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+                    <from sourceSinkType="Parameter" ParameterIndex="0" />
+                    <to sourceSinkType="Parameter" ParameterIndex="1" />
+				</flow>
+			</flows>
+		</method>
+
+		<method id="System.String GetString(byte,int)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+                    <from sourceSinkType="Parameter" ParameterIndex="0" />
+                    <to sourceSinkType="Parameter" ParameterIndex="1" />
+				</flow>
+			</flows>
+		</method>
+
+		<method id="System.String GetString(System.ReadOnlySpan`1)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+                    <from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+
+
+		<method id="System.String GetString(byte[])">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+                    <from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+
+		<method id="System.String GetString(byte[],int,int)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+                    <from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="System.IO.Stream CreateTranscodingStream(System.IO.Stream,System.Text.Encoding,System.Text.Encoding,boolean)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+                    <from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+
+
+		<method id="int GetBytes(char,int,byte,int,System.Text.EncoderNLS)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+                    <from sourceSinkType="Parameter" ParameterIndex="0" />
+                    <to sourceSinkType="Parameter" ParameterIndex="2" />
+				</flow>
+			</flows>
+		</method>
+
+		<method id="int GetBytesFast(char,int,byte,int,ByReferenceWrappers.Wrapper)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+                    <from sourceSinkType="Parameter" ParameterIndex="0" />
+                    <to sourceSinkType="Parameter" ParameterIndex="2" />
+				</flow>
+			</flows>
+		</method>
+
+		<method id="int GetBytesWithFallback(char,int,byte,int,int,int)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+                    <from sourceSinkType="Parameter" ParameterIndex="0" />
+                    <to sourceSinkType="Parameter" ParameterIndex="2" />
+				</flow>
+			</flows>
+		</method>
+
+		<method id="int GetBytesWithFallback(char,int,byte,int,int,int,System.Text.EncoderNLS)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+                    <from sourceSinkType="Parameter" ParameterIndex="0" />
+                    <to sourceSinkType="Parameter" ParameterIndex="2" />
+				</flow>
+			</flows>
+		</method>
+
+		<method id="int GetBytesWithFallback(System.ReadOnlySpan`1,int,System.Span`1,int,System.Text.EncoderNLS)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+                    <from sourceSinkType="Parameter" ParameterIndex="0" />
+                    <to sourceSinkType="Parameter" ParameterIndex="2" />
+				</flow>
+			</flows>
+		</method>
+
+
+		<method id="int GetCharsWithFallback(byte,int,char,int,int,int,System.Text.DecoderNLS)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+                    <from sourceSinkType="Parameter" ParameterIndex="0" />
+                    <to sourceSinkType="Parameter" ParameterIndex="2" />
+				</flow>
+			</flows>
+		</method>
+
+		<method id="int GetCharsWithFallback(System.ReadOnlySpan`1,int,System.Span`1,int,System.Text.DecoderNLS)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+                    <from sourceSinkType="Parameter" ParameterIndex="0" />
+                    <to sourceSinkType="Parameter" ParameterIndex="2" />
+				</flow>
+			</flows>
+		</method>
+	</methods>
+</summary>

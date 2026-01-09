@@ -1,0 +1,41 @@
+<?xml version="1.0" ?>
+<summary fileFormatVersion="101">
+	<methods>
+		<method id="void AppendChar(char)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Field" />
+				</flow>
+			</flows>
+		</method>
+		<method id="void Clear()">
+            <clears>
+                <clear sourceSinkType="Field"
+                       preventPropagation="false" />
+            </clears>
+		</method>
+		<method id="void Dispose()">
+            <clears>
+                <clear sourceSinkType="Field"
+                       preventPropagation="false" />
+            </clears>
+		</method>
+		<method id="void InsertAt(int,char)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Field" />
+				</flow>
+			</flows>
+		</method>
+		<method id="void SetAt(int,char)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Field" />
+				</flow>
+			</flows>
+		</method>
+	</methods>
+</summary>

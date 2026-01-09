@@ -1,0 +1,516 @@
+<?xml version="1.0" ?>
+<summary fileFormatVersion="101">
+	<methods>
+		<method id="void &lt;init&gt;(char[])">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Field" />
+				</flow>
+			</flows>
+		</method>
+		<method id="void &lt;init&gt;(char[],int,int)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Field" />
+				</flow>
+			</flows>
+		</method>
+		<method id="void &lt;init&gt;(char,int)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Field" />
+				</flow>
+			</flows>
+		</method>
+		<method id="void CopyTo(int,char[],int,int)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Field" />
+					<to sourceSinkType="Parameter" ParameterIndex="1" />
+				</flow>
+			</flows>
+		</method>
+		<method id="char get_Chars(int)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Field" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="System.String Concat(System.Object)">
+			<flows>
+				<flow isAlias="false" typeChecking="false" cutSubfields="true">
+					<from sourceSinkType="Parameter" ParameterIndex="0"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="System.String Concat(System.Object,System.Object)">
+			<flows>
+				<flow isAlias="false" typeChecking="false" cutSubfields="true">
+					<from sourceSinkType="Parameter" ParameterIndex="0"/>
+					<to sourceSinkType="Return" />
+				</flow>
+				<flow isAlias="false" typeChecking="false" cutSubfields="true">
+					<from sourceSinkType="Parameter" ParameterIndex="1"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="System.String Concat(System.Object,System.Object,System.Object)">
+			<flows>
+				<flow isAlias="false" typeChecking="false" cutSubfields="true">
+					<from sourceSinkType="Parameter" ParameterIndex="0"/>
+					<to sourceSinkType="Return" />
+				</flow>
+				<flow isAlias="false" typeChecking="false" cutSubfields="true">
+					<from sourceSinkType="Parameter" ParameterIndex="1"/>
+					<to sourceSinkType="Return" />
+				</flow>
+				<flow isAlias="false" typeChecking="false" cutSubfields="true">
+					<from sourceSinkType="Parameter" ParameterIndex="2"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		
+		<method id="System.String Concat(System.String)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Parameter" ParameterIndex="0"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="System.String Concat(System.String,System.String)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Parameter" ParameterIndex="0"/>
+					<to sourceSinkType="Return" />
+				</flow>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Parameter" ParameterIndex="1"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="System.String Concat(System.String,System.String,System.String)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Parameter" ParameterIndex="0"/>
+					<to sourceSinkType="Return" />
+				</flow>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Parameter" ParameterIndex="1"/>
+					<to sourceSinkType="Return" />
+				</flow>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Parameter" ParameterIndex="2"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="System.String Concat(System.String,System.String,System.String,System.String)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Parameter" ParameterIndex="0"/>
+					<to sourceSinkType="Return" />
+				</flow>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Parameter" ParameterIndex="1"/>
+					<to sourceSinkType="Return" />
+				</flow>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Parameter" ParameterIndex="2"/>
+					<to sourceSinkType="Return" />
+				</flow>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Parameter" ParameterIndex="3"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="System.String Concat(System.Object[])">
+			<flows>
+				<flow isAlias="false" typeChecking="false" cutSubfields="true">
+					<from sourceSinkType="Parameter" ParameterIndex="0"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="System.String Concat(System.String[])">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Parameter" ParameterIndex="0"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="System.String Copy(System.String)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Parameter" ParameterIndex="0"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="System.String Join(System.String,System.Object[])">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Parameter" ParameterIndex="0"/>
+					<to sourceSinkType="Return" />
+				</flow>
+				<flow isAlias="false" typeChecking="false" cutSubfields="true">
+					<from sourceSinkType="Parameter" ParameterIndex="1"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="System.String Join(System.String,System.String[])">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Parameter" ParameterIndex="0"/>
+					<to sourceSinkType="Return" />
+				</flow>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Parameter" ParameterIndex="1"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="System.String Join(System.String,System.String[],int,int)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Parameter" ParameterIndex="0"/>
+					<to sourceSinkType="Return" />
+				</flow>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Parameter" ParameterIndex="1"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="System.String Join(System.String,System.Collections.Generic.IEnumerable`1)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Parameter" ParameterIndex="0"/>
+					<to sourceSinkType="Return" />
+				</flow>
+				<flow isAlias="false" typeChecking="false" cutSubfields="true">
+					<from sourceSinkType="Parameter" ParameterIndex="1"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="System.String Trim(char[])">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Parameter" ParameterIndex="0"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="System.String TrimStart(char[])">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Parameter" ParameterIndex="0"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="System.String TrimEnd(char[])">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Parameter" ParameterIndex="0"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="System.String: System.String Format(System.String,System.Object)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Return" />
+				</flow>
+				<flow isAlias="false" typeChecking="false" cutSubfields="true">
+					<from sourceSinkType="Parameter" ParameterIndex="1" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="System.String: System.String Format(System.String,System.Object,System.Object)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Return" />
+				</flow>
+				<flow isAlias="false" typeChecking="false" cutSubfields="true">
+					<from sourceSinkType="Parameter" ParameterIndex="1" />
+					<to sourceSinkType="Return" />
+				</flow>
+				<flow isAlias="false" typeChecking="false" cutSubfields="true">
+					<from sourceSinkType="Parameter" ParameterIndex="2" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="System.String: System.String Format(System.String,System.Object,System.Object,System.Object)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Return" />
+				</flow>
+				<flow isAlias="false" typeChecking="false" cutSubfields="true">
+					<from sourceSinkType="Parameter" ParameterIndex="1" />
+					<to sourceSinkType="Return" />
+				</flow>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Parameter" ParameterIndex="2" />
+					<to sourceSinkType="Return" />
+				</flow>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Parameter" ParameterIndex="3" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="System.String: System.String Format(System.String,System.Object[])">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Return" />
+				</flow>
+				<flow isAlias="false" typeChecking="false" cutSubfields="true">
+					<from sourceSinkType="Parameter" ParameterIndex="1" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="System.String Replace(char,char)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Parameter" ParameterIndex="1" />
+					<to sourceSinkType="Return" />
+				</flow>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Field" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="System.String Replace(System.String,System.String)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Parameter" ParameterIndex="1" />
+					<to sourceSinkType="Return" />
+				</flow>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Field" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="System.String[] Split(char[])">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Field" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="System.String[] Split(char[],System.StringSplitOptions)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Field" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="System.String[] Split(char[],int,System.StringSplitOptions)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Field" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="System.String[] Split(System.String[],System.StringSplitOptions)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Field" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="System.String[] Split(System.String[],int,System.StringSplitOptions)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Field" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="java.lang.CharSequence subSequence(int,int)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Field" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="System.String Substring(int)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Field" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="System.String Substring(int,int)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Field" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="System.String ToLower()">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Field" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="System.String ToLowerInvariant">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Field" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="System.String ToLower(System.Globalization.CultureInfo)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Field" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="System.String ToString()">
+			<flows>
+				<flow isAlias="true" typeChecking="false">
+					<from sourceSinkType="Field" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="System.String ToString(System.IFormatProvider)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Field" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="System.String ToUpper()">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Field" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="System.String ToUpper(System.Globalization.CultureInfo)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Field" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="System.String ToUpperInvariant()">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Field" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="System.String Trim()">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Field" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="System.String PadLeft(int)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Field" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="System.String PadLeft(int,char)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Field" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="System.String PadRight(int)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Field" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="System.String PadRight(int,char)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Field" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="System.String Insert(int,System.String)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Parameter" ParameterIndex="1" />
+					<to sourceSinkType="Return" />
+				</flow>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Field" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="System.String Remove(int,int)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Field" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="System.String Remove(int)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Field" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="boolean op_Equality(System.String,System.String)" isExcluded="true" />
+		<method id="boolean op_Inequality(System.String,System.String)" isExcluded="true" />
+	</methods>
+</summary>

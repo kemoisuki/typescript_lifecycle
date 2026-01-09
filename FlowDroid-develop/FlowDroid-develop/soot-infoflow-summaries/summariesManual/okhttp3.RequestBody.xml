@@ -1,0 +1,97 @@
+<?xml version="1.0" ?>
+<summary fileFormatVersion="101" isExclusive="true">
+	<methods>
+		<method id="okhttp3.MediaType contentType()">
+			<flows>
+				<flow isAlias="false">
+					<from sourceSinkType="Field"
+						AccessPath="[okhttp3.RequestBody: okhttp3.MediaType mediaType]"
+						AccessPathTypes="[okhttp3.MediaType]" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="okhttp3.RequestBody create(okhttp3.MediaType,byte[])">
+			<flows>
+				<flow isAlias="false">
+					<from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Return"
+						AccessPath="[okhttp3.RequestBody: okhttp3.MediaType mediaType]"
+						AccessPathTypes="[okhttp3.MediaType]" />
+				</flow>
+				<flow isAlias="false">
+					<from sourceSinkType="Parameter" ParameterIndex="1" />
+					<to sourceSinkType="Return"
+						AccessPath="[okhttp3.RequestBody: byte[] content]"
+						AccessPathTypes="[byte[]]" />
+				</flow>
+			</flows>
+		</method>
+		<method id="okhttp3.RequestBody create(java.lang.String,okhttp3.MediaType)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Return"
+						AccessPath="[okhttp3.RequestBody: byte[] content]"
+						AccessPathTypes="[byte[]]" />
+				</flow>
+				<flow isAlias="false" >
+					<from sourceSinkType="Parameter" ParameterIndex="1" />
+					<to sourceSinkType="Return"
+						AccessPath="[okhttp3.RequestBody: okhttp3.MediaType mediaType]"
+						AccessPathTypes="[okhttp3.MediaType]" />
+				</flow>
+			</flows>
+		</method>
+		<method id="okhttp3.RequestBody create(okhttp3.MediaType,byte[],int,int)">
+			<flows>
+				<flow isAlias="false">
+					<from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Return"
+						AccessPath="[okhttp3.RequestBody: okhttp3.MediaType mediaType]"
+						AccessPathTypes="[okhttp3.MediaType]" />
+				</flow>
+				<flow isAlias="false">
+					<from sourceSinkType="Parameter" ParameterIndex="1" />
+					<to sourceSinkType="Return"
+						AccessPath="[okhttp3.RequestBody: byte[] content]"
+						AccessPathTypes="[byte[]]" />
+				</flow>
+			</flows>
+		</method>
+		<method id="okhttp3.RequestBody create(okhttp3.MediaType,okio.ByteString)">
+			<flows>
+				<flow isAlias="false">
+					<from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Return"
+						AccessPath="[okhttp3.RequestBody: okhttp3.MediaType mediaType]"
+						AccessPathTypes="[okhttp3.MediaType]" />
+				</flow>
+				<flow isAlias="false">
+					<from sourceSinkType="Parameter" ParameterIndex="1"
+						AccessPath="[okio.Buffer: byte[] innerArray]"
+						AccessPathTypes="[byte[]]" />
+					<to sourceSinkType="Return"
+						AccessPath="[okhttp3.RequestBody: byte[] content]"
+						AccessPathTypes="[byte[]]" />
+				</flow>
+			</flows>
+		</method>
+		<method id="okhttp3.RequestBody create(okhttp3.MediaType,java.io.File)">
+			<flows>
+				<flow isAlias="false">
+					<from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Return"
+						AccessPath="[okhttp3.RequestBody: okhttp3.MediaType mediaType]"
+						AccessPathTypes="[okhttp3.MediaType]" />
+				</flow>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Parameter" ParameterIndex="1" />
+					<to sourceSinkType="Return"
+						AccessPath="[okhttp3.RequestBody: byte[] content]"
+						AccessPathTypes="[byte[]]" />
+				</flow>
+			</flows>
+		</method>
+	</methods>
+</summary>

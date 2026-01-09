@@ -1,0 +1,299 @@
+<?xml version="1.0" ?>
+<summary fileFormatVersion="101" isExclusive="true">
+	<methods>
+		<method id="okhttp3.Headers$Builder add(java.util.String)">
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Field"
+						AccessPath="[okhttp3.Header$Builder: java.lang.String[] keys]"
+						AccessPathTypes="[java.lang.String[]]" />
+				</flow>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Field"
+						AccessPath="[okhttp3.Header$Builder: java.lang.String[] values]"
+						AccessPathTypes="[java.lang.String[]]" />
+				</flow>
+				<flow isAlias="true" final="true">
+					<from sourceSinkType="Field"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="okhttp3.Headers$Builder add(java.util.String,java.util.Date)">
+			<constraints>
+				<key sourceSinkType="Parameter" ParameterIndex="0" />
+			</constraints>
+			<flows>
+				<flow isAlias="false">
+					<from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Field"
+                        AccessPath="[okhttp3.Header$Builder: java.lang.String[] keys]"
+                        AccessPathTypes="[java.lang.String[]]" />
+                </flow>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Parameter" ParameterIndex="1" />
+					<to sourceSinkType="Field"
+                        AccessPath="[okhttp3.Header$Builder: java.lang.String[] values]"
+                        AccessPathTypes="[java.lang.String[]]"
+                        constrained="true" />
+                </flow>
+				<flow isAlias="true" final="true">
+					<from sourceSinkType="Field"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="okhttp3.Headers$Builder add(java.util.String,java.time.Instant)">
+			<constraints>
+				<key sourceSinkType="Parameter" ParameterIndex="0" />
+			</constraints>
+			<flows>
+				<flow isAlias="false">
+					<from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Field"
+                        AccessPath="[okhttp3.Header$Builder: java.lang.String[] keys]"
+                        AccessPathTypes="[java.lang.String[]]" />
+                </flow>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Parameter" ParameterIndex="1" />
+					<to sourceSinkType="Field"
+                        AccessPath="[okhttp3.Header$Builder: java.lang.String[] values]"
+                        AccessPathTypes="[java.lang.String[]]"
+                        constrained="true" />
+                </flow>
+				<flow isAlias="true" final="true">
+					<from sourceSinkType="Field"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="okhttp3.Headers$Builder add(java.util.String,java.util.String)">
+			<constraints>
+				<key sourceSinkType="Parameter" ParameterIndex="0" />
+			</constraints>
+			<flows>
+				<flow isAlias="false">
+					<from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Field"
+                        AccessPath="[okhttp3.Header$Builder: java.lang.String[] keys]"
+                        AccessPathTypes="[java.lang.String[]]" />
+                </flow>
+				<flow isAlias="false">
+					<from sourceSinkType="Parameter" ParameterIndex="1" />
+					<to sourceSinkType="Field"
+                        AccessPath="[okhttp3.Header$Builder: java.lang.String[] values]"
+                        AccessPathTypes="[java.lang.String[]]"
+                        constrained="true" />
+                </flow>
+				<flow isAlias="true" final="true">
+					<from sourceSinkType="Field"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="okhttp3.Headers$Builder addAll(okhttp3.Headers)">
+			<flows>
+				<flow isAlias="false">
+					<from sourceSinkType="Parameter" ParameterIndex="0"
+						AccessPath="[okhttp3.Header$Builder: java.lang.String[] keys]"
+						AccessPathTypes="[java.lang.String[]]" />
+					<to sourceSinkType="Field"
+                        AccessPath="[okhttp3.Header$Builder: java.lang.String[] keys]"
+                        AccessPathTypes="[java.lang.String[]]" />
+                </flow>
+				<flow isAlias="false">
+					<from sourceSinkType="Parameter" ParameterIndex="0"
+						AccessPath="[okhttp3.Header$Builder: java.lang.String[] values]"
+						AccessPathTypes="[java.lang.String[]]" />
+					<to sourceSinkType="Field"
+                        AccessPath="[okhttp3.Header$Builder: java.lang.String[] values]"
+                        AccessPathTypes="[java.lang.String[]]" />
+                </flow>
+				<flow isAlias="true" final="true">
+					<from sourceSinkType="Field"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="okhttp3.Headers$Builder addUnsafeNonAscii(java.util.String,java.util.String)">
+			<constraints>
+				<key sourceSinkType="Parameter" ParameterIndex="0" />
+			</constraints>
+			<flows>
+				<flow isAlias="false">
+					<from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Field"
+                        AccessPath="[okhttp3.Header$Builder: java.lang.String[] keys]"
+                        AccessPathTypes="[java.lang.String[]]" />
+                </flow>
+				<flow isAlias="false">
+					<from sourceSinkType="Parameter" ParameterIndex="1" />
+					<to sourceSinkType="Field"
+                        AccessPath="[okhttp3.Header$Builder: java.lang.String[] values]"
+                        AccessPathTypes="[java.lang.String[]]"
+                        constrained="true" />
+                </flow>
+				<flow isAlias="true" final="true">
+					<from sourceSinkType="Field"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="okhttp3.Headers build()">
+			<constraints>
+				<key sourceSinkType="Parameter" ParameterIndex="0" />
+			</constraints>
+			<flows>
+				<flow isAlias="false">
+					<from sourceSinkType="Field"
+                        AccessPath="[okhttp3.Header$Builder: java.lang.String[] keys]"
+                        AccessPathTypes="[java.lang.String[]]" />
+					<to sourceSinkType="Return"
+                        AccessPath="[okhttp3.Header: java.lang.String[] keys]"
+                        AccessPathTypes="[java.lang.String[]]" />
+                </flow>
+				<flow isAlias="false">
+					<from sourceSinkType="Field"
+                        AccessPath="[okhttp3.Header$Builder: java.lang.String[] values]"
+                        AccessPathTypes="[java.lang.String[]]" />
+					<to sourceSinkType="Return"
+                        AccessPath="[okhttp3.Header: java.lang.String[] values]"
+                        AccessPathTypes="[java.lang.String[]]" />
+                </flow>
+				<flow isAlias="true" final="true">
+					<from sourceSinkType="Field"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="java.lang.String get(java.lang.String)">
+			<constraints>
+				<key sourceSinkType="Parameter"
+					 ParameterIndex="0" />
+			</constraints>
+			<flows>
+				<flow isAlias="false" typeChecking="false">
+					<from sourceSinkType="Field"
+						AccessPath="[okhttp3.Headers$Builder: java.lang.String[] values]"
+						AccessPathTypes="[java.lang.String[]]"
+						constrained="True" />
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+		</method>
+		<method id="okhttp3.Headers$Builder removeAll(java.util.String)">
+			<constraints>
+				<key sourceSinkType="Parameter"
+					 ParameterIndex="0" />
+			</constraints>
+			<flows>
+				<flow isAlias="true" final="true">
+					<from sourceSinkType="Field"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+			<clears>
+				<clear sourceSinkType="Field"
+					AccessPath="[okhttp3.Header$Builder: java.lang.String[] values]"
+					AccessPathTypes="[java.lang.String[]]"
+					constrained="True"
+					preventPropagation="false" />
+			</clears>
+		</method>
+		<method id="okhttp3.Headers$Builder set(java.lang.String,java.util.Date)">
+			<constraints>
+				<key sourceSinkType="Parameter" ParameterIndex="0" />
+			</constraints>
+			<flows>
+				<flow isAlias="true" final="true">
+					<from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Field"
+						AccessPath="[okhttp3.Header$Builder: java.lang.String[] keys]"
+						AccessPathTypes="[java.lang.String[]]" />
+				</flow>
+				<flow isAlias="true" typeChecking="false" final="true">
+					<from sourceSinkType="Parameter" ParameterIndex="1" />
+					<to sourceSinkType="Field"
+						AccessPath="[okhttp3.Header$Builder: java.lang.String[] values]"
+						AccessPathTypes="[java.lang.String[]]"
+						constrained="true" />
+				</flow>
+				<flow isAlias="true" final="true">
+					<from sourceSinkType="Field"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+			<clears>
+				<clear sourceSinkType="Field"
+					   AccessPath="[java.util.Map: java.lang.Object[] values]"
+					   preventPropagation="false"
+				       constrained="true"
+					   isAlias="true" />
+			</clears>
+		</method>
+		<method id="okhttp3.Headers$Builder set(java.lang.String,java.time.Instant)">
+			<constraints>
+				<key sourceSinkType="Parameter" ParameterIndex="0" />
+			</constraints>
+			<flows>
+				<flow isAlias="true" final="true">
+					<from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Field"
+						AccessPath="[okhttp3.Header$Builder: java.lang.String[] keys]"
+						AccessPathTypes="[java.lang.String[]]" />
+				</flow>
+				<flow isAlias="true" typeChecking="false" final="true">
+					<from sourceSinkType="Parameter" ParameterIndex="1" />
+					<to sourceSinkType="Field"
+						AccessPath="[okhttp3.Header$Builder: java.lang.String[] values]"
+						AccessPathTypes="[java.lang.String[]]"
+						constrained="true" />
+				</flow>
+				<flow isAlias="true" final="true">
+					<from sourceSinkType="Field"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+			<clears>
+				<clear sourceSinkType="Field"
+					   AccessPath="[java.util.Map: java.lang.Object[] values]"
+					   preventPropagation="false"
+				       constrained="true"
+					   isAlias="true" />
+			</clears>
+		</method>
+		<method id="okhttp3.Headers$Builder set(java.lang.String,java.lang.String)">
+			<constraints>
+				<key sourceSinkType="Parameter" ParameterIndex="0" />
+			</constraints>
+			<flows>
+				<flow isAlias="true" final="true">
+					<from sourceSinkType="Parameter" ParameterIndex="0" />
+					<to sourceSinkType="Field"
+						AccessPath="[okhttp3.Header$Builder: java.lang.String[] keys]"
+						AccessPathTypes="[java.lang.String[]]" />
+				</flow>
+				<flow isAlias="true" typeChecking="false" final="true">
+					<from sourceSinkType="Parameter" ParameterIndex="1" />
+					<to sourceSinkType="Field"
+						AccessPath="[okhttp3.Header$Builder: java.lang.String[] values]"
+						AccessPathTypes="[java.lang.String[]]"
+						constrained="true" />
+				</flow>
+				<flow isAlias="true" final="true">
+					<from sourceSinkType="Field"/>
+					<to sourceSinkType="Return" />
+				</flow>
+			</flows>
+			<clears>
+				<clear sourceSinkType="Field"
+					   AccessPath="[java.util.Map: java.lang.Object[] values]"
+					   preventPropagation="false"
+				       constrained="true"
+					   isAlias="true" />
+			</clears>
+		</method>
+	</methods>
+</summary>
