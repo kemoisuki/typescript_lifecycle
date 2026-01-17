@@ -1,0 +1,1119 @@
+# 🚀 TEST_lifecycle 模块说明文档
+
+> **扩展版生命周期建模框架**
+> 
+> 本模块扩展了 ArkAnalyzer 的 `DummyMainCreater`，实现多 Ability 支持和精细化 UI 回调建模。
+
+---
+
+## 📚 目录
+
+1. [背景与动机](#1-背景与动机)
+2. [核心概念](#2-核心概念)
+3. [模块架构](#3-模块架构)
+4. [文件详解](#4-文件详解)
+5. [完整流程解析](#5-完整流程解析)
+6. [类与函数详解](#6-类与函数详解)
+7. [使用示例](#7-使用示例)
+8. [TODO 与扩展点](#8-todo-与扩展点)
+9. [常见问题](#9-常见问题)
+
+---
+
+## 1. 背景与动机
+
+### 1.1 为什么需要 DummyMain？
+
+在鸿蒙/Android 应用中，**没有传统意义上的 `main()` 函数**。应用的执行由系统框架驱动：
+
+```
+传统程序:
+    main() → 函数A() → 函数B() → 结束
+
+鸿蒙应用:
+    系统启动 → onCreate() → onForeground() → 用户点击按钮 → onClick() → ...
+    （由系统在不同时机调用不同的生命周期方法）
+```
+
+**问题**：静态分析工具需要一个入口点来遍历代码，但鸿蒙应用没有！
+
+**解决方案**：创建一个**虚拟的 main 函数（DummyMain）**，把所有可能被调用的方法串联起来。
+
+### 1.2 原版 DummyMainCreater 的局限
+
+| 局限 | 说明 |
+|------|------|
+| **单 Ability** | 只处理单个 Scene，不支持多页面应用 |
+| **无跳转建模** | 忽略 `startAbility()`、`router.pushUrl()` 等跳转 |
+| **粗糙的回调收集** | 直接收集所有 `onClick` 方法，不区分属于哪个控件 |
+| **未利用 ViewTree** | 没有使用已有的 UI 树解析能力 |
+
+### 1.3 本模块的目标
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    扩展版 DummyMain                          │
+├─────────────────────────────────────────────────────────────┤
+│  ✅ 支持多个 Ability                                         │
+│  ✅ 建模页面跳转关系（框架已有，待实现）                        │
+│  ✅ 精细化 UI 回调（按控件提取）                              │
+│  ✅ 整合 ViewTree 解析                                       │
+│  ✅ 模块化、可配置                                           │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 2. 核心概念
+
+### 2.1 什么是 Ability？
+
+**Ability** 是鸿蒙应用的基本组成单元，类似于 Android 的 Activity。
+
+```typescript
+// 一个典型的 Ability
+export default class EntryAbility extends UIAbility {
+    onCreate(want: Want) { /* 创建时调用 */ }
+    onWindowStageCreate(windowStage: WindowStage) { /* 窗口创建 */ }
+    onForeground() { /* 进入前台 */ }
+    onBackground() { /* 进入后台 */ }
+    onDestroy() { /* 销毁时调用 */ }
+}
+```
+
+**生命周期流程**：
+
+```mermaid
+stateDiagram-v2
+    [*] --> onCreate: 启动应用
+    onCreate --> onWindowStageCreate: 创建窗口
+    onWindowStageCreate --> onForeground: 显示界面
+    onForeground --> onBackground: 切到后台
+    onBackground --> onForeground: 回到前台
+    onBackground --> onWindowStageDestroy: 准备销毁
+    onWindowStageDestroy --> onDestroy: 销毁
+    onDestroy --> [*]
+```
+
+### 2.2 什么是 Component？
+
+**Component** 是鸿蒙的 UI 组件，用 `@Component` 装饰器标记。
+
+```typescript
+@Entry
+@Component
+struct Index {
+    @State message: string = 'Hello';
+    
+    aboutToAppear() { /* 组件即将显示 */ }
+    
+    build() {
+        Column() {
+            Text(this.message)
+            Button('Click me')
+                .onClick(() => {
+                    this.message = 'Clicked!';  // 这就是 UI 回调
+                })
+        }
+    }
+    
+    aboutToDisappear() { /* 组件即将消失 */ }
+}
+```
+
+### 2.3 什么是 ViewTree？
+
+**ViewTree** 是 ArkAnalyzer 解析 `build()` 方法后得到的 UI 组件树。
+
+```
+源代码:                          ViewTree:
+Column() {                       Column
+    Text('Hello')         →        ├── Text
+    Button('Click')                │     └── attributes: []
+        .onClick(...)              └── Button
+}                                        └── attributes: [onClick]
+```
+
+### 2.4 生成的 DummyMain 长什么样？
+
+```typescript
+function @extendedDummyMain() {
+    // 1. 静态初始化
+    StaticClass.staticInit();
+    
+    // 2. 主循环（模拟非确定性执行）
+    count = 0;
+    while (true) {
+        // 分支 1: EntryAbility 生命周期
+        if (count == 1) {
+            ability1 = new EntryAbility();
+            ability1.onCreate(want);
+            ability1.onWindowStageCreate(windowStage);
+            ability1.onForeground();
+        }
+        
+        // 分支 2: Index 组件生命周期 + UI 回调
+        if (count == 2) {
+            component1 = new Index();
+            component1.aboutToAppear();
+            component1.build();
+            
+            // 精细化 UI 回调
+            component1.onClick_handler();  // Button 的点击回调
+        }
+        
+        // 分支 3: 另一个 Ability...
+        if (count == 3) {
+            ability2 = new SecondAbility();
+            // ...
+        }
+    }
+    return;
+}
+```
+
+---
+
+## 3. 模块架构
+
+### 3.1 文件结构
+
+```
+TEST_lifecycle/
+│
+├── 📄 index.ts                      # 模块入口，统一导出
+│
+├── 📄 LifecycleTypes.ts             # 类型定义
+│   │   定义所有数据结构，不包含逻辑
+│   │
+│   ├── AbilityLifecycleStage        # Ability 生命周期枚举
+│   ├── ComponentLifecycleStage      # Component 生命周期枚举
+│   ├── AbilityInfo                  # Ability 信息结构
+│   ├── ComponentInfo                # Component 信息结构
+│   ├── UICallbackInfo               # UI 回调信息结构
+│   └── LifecycleModelConfig         # 配置选项
+│
+├── 📄 AbilityCollector.ts           # 信息收集器
+│   │   负责从 Scene 中收集 Ability 和 Component
+│   │
+│   ├── collectAllAbilities()        # 收集所有 Ability
+│   ├── collectAllComponents()       # 收集所有 Component
+│   └── analyzeNavigationTargets()   # 分析跳转关系 (TODO)
+│
+├── 📄 ViewTreeCallbackExtractor.ts  # 回调提取器
+│   │   从 ViewTree 中精细化提取 UI 回调
+│   │
+│   ├── extractFromComponent()       # 提取单个组件的回调
+│   └── fillAllComponentCallbacks()  # 批量填充
+│
+└── 📄 LifecycleModelCreator.ts      # 核心构建器
+    │   组装所有部件，生成最终的 DummyMain
+    │
+    ├── create()                     # 主入口
+    ├── collectAbilitiesAndComponents()
+    ├── extractUICallbacks()
+    ├── createDummyMainContainer()
+    └── buildDummyMainCfg()
+```
+
+### 3.2 模块依赖关系
+
+```mermaid
+graph TD
+    subgraph "TEST_lifecycle 模块"
+        A[LifecycleModelCreator<br/>核心构建器]
+        B[AbilityCollector<br/>信息收集]
+        C[ViewTreeCallbackExtractor<br/>回调提取]
+        D[LifecycleTypes<br/>类型定义]
+    end
+    
+    subgraph "ArkAnalyzer 核心"
+        E[Scene]
+        F[ArkClass / ArkMethod]
+        G[ViewTree]
+        H[Cfg / BasicBlock]
+    end
+    
+    A --> B
+    A --> C
+    A --> D
+    B --> D
+    C --> D
+    
+    B --> E
+    B --> F
+    C --> G
+    A --> H
+    
+    style A fill:#e1f5fe
+    style D fill:#fff3e0
+```
+
+### 3.3 数据流向
+
+```mermaid
+flowchart LR
+    subgraph 输入
+        S[Scene<br/>整个项目的代码模型]
+    end
+    
+    subgraph 处理
+        A[收集 Ability] --> D[AbilityInfo[]]
+        B[收集 Component] --> E[ComponentInfo[]]
+        C[提取 ViewTree 回调] --> F[UICallbackInfo[]]
+    end
+    
+    subgraph 输出
+        G[@extendedDummyMain<br/>虚拟入口方法]
+    end
+    
+    S --> A
+    S --> B
+    E --> C
+    
+    D --> G
+    E --> G
+    F --> G
+```
+
+---
+
+## 4. 文件详解
+
+### 4.1 LifecycleTypes.ts — 类型定义
+
+**角色**：数据结构的"蓝图"，定义了所有信息的格式。
+
+**类比**：就像建筑图纸，规定了每个房间的尺寸和用途，但不包含实际的砖块。
+
+#### 主要类型
+
+```typescript
+// ==================== 生命周期阶段 ====================
+
+/**
+ * Ability 生命周期阶段
+ * 
+ * 想象成一个人的一天：
+ * - CREATE      = 起床
+ * - FOREGROUND  = 开始工作
+ * - BACKGROUND  = 休息
+ * - DESTROY     = 睡觉
+ */
+enum AbilityLifecycleStage {
+    CREATE = 'onCreate',
+    WINDOW_STAGE_CREATE = 'onWindowStageCreate',
+    FOREGROUND = 'onForeground',
+    BACKGROUND = 'onBackground',
+    WINDOW_STAGE_DESTROY = 'onWindowStageDestroy',
+    DESTROY = 'onDestroy',
+}
+
+// ==================== 信息结构 ====================
+
+/**
+ * Ability 信息
+ * 
+ * 存储一个 Ability 的"身份证"
+ */
+interface AbilityInfo {
+    arkClass: ArkClass;                    // 对应的类
+    name: string;                          // 名称
+    lifecycleMethods: Map<Stage, Method>;  // 生命周期方法
+    components: ComponentInfo[];           // 关联的组件
+    navigationTargets: NavigationTarget[]; // 可跳转的目标
+    isEntry: boolean;                      // 是否是入口
+}
+
+/**
+ * UI 回调信息
+ * 
+ * 记录"哪个控件的什么事件绑定了哪个函数"
+ */
+interface UICallbackInfo {
+    componentType: string;      // 控件类型：Button, Text...
+    eventType: UIEventType;     // 事件类型：onClick, onTouch...
+    callbackMethod: ArkMethod;  // 回调方法
+    relatedStateValues: [];     // 相关的状态变量
+}
+```
+
+---
+
+### 4.2 AbilityCollector.ts — 信息收集器
+
+**角色**：项目的"普查员"，遍历所有代码，找出 Ability 和 Component。
+
+**类比**：就像人口普查员挨家挨户登记信息。
+
+#### 核心方法
+
+```typescript
+class AbilityCollector {
+    /**
+     * 收集所有 Ability
+     * 
+     * 工作流程：
+     * 1. 遍历 Scene 中的所有类
+     * 2. 判断每个类是否继承自 UIAbility
+     * 3. 如果是，提取它的生命周期方法
+     * 4. 返回 AbilityInfo 列表
+     */
+    collectAllAbilities(): AbilityInfo[] {
+        for (class of scene.getClasses()) {
+            if (isAbilityClass(class)) {
+                // 这个类是 Ability！
+                info = buildAbilityInfo(class);
+                abilities.push(info);
+            }
+        }
+        return abilities;
+    }
+    
+    /**
+     * 判断是否是 Ability 类
+     * 
+     * 判断依据：
+     * - 直接继承 UIAbility / Ability / ...
+     * - 或者祖先类继承了这些基类
+     */
+    private isAbilityClass(arkClass): boolean {
+        // 检查父类名称
+        if (['UIAbility', 'Ability'].includes(arkClass.getSuperClassName())) {
+            return true;
+        }
+        // 检查继承链...
+    }
+    
+    /**
+     * 收集生命周期方法
+     * 
+     * 遍历类的所有方法，找出 onCreate, onDestroy 等
+     */
+    private collectAbilityLifecycleMethods(arkClass): Map<Stage, Method> {
+        for (method of arkClass.getMethods()) {
+            switch (method.getName()) {
+                case 'onCreate':
+                    methods.set(CREATE, method);
+                    break;
+                case 'onDestroy':
+                    methods.set(DESTROY, method);
+                    break;
+                // ...
+            }
+        }
+    }
+}
+```
+
+#### 工作原理图
+
+```mermaid
+flowchart TD
+    A[Scene.getClasses] --> B{遍历每个类}
+    B --> C{是否继承 UIAbility?}
+    C -->|是| D[提取生命周期方法]
+    C -->|否| E{是否有 @Component?}
+    E -->|是| F[提取组件信息]
+    E -->|否| B
+    D --> G[添加到 abilities 列表]
+    F --> H[添加到 components 列表]
+    G --> B
+    H --> B
+    B -->|遍历完成| I[返回结果]
+```
+
+---
+
+### 4.3 ViewTreeCallbackExtractor.ts — 回调提取器
+
+**角色**：UI 回调的"侦探"，从 ViewTree 中找出所有事件绑定。
+
+**类比**：就像检查员检查每个按钮上贴了什么标签。
+
+#### 与原方法的对比
+
+```
+原版 DummyMainCreater.getCallbackMethods():
+┌─────────────────────────────────────┐
+│ 遍历所有语句                         │
+│ 找到 onClick(...) 调用              │
+│ 提取参数中的方法                     │
+│                                     │
+│ 结果: [method1, method2, method3]   │
+│       （不知道属于哪个控件）          │
+└─────────────────────────────────────┘
+
+本模块 ViewTreeCallbackExtractor:
+┌─────────────────────────────────────┐
+│ 遍历 ViewTree 节点                   │
+│ 检查每个节点的 attributes            │
+│ 找到 onClick, onTouch 等事件        │
+│ 记录控件类型和回调方法               │
+│                                     │
+│ 结果:                               │
+│ [                                   │
+│   { type: 'Button',                 │
+│     event: 'onClick',               │
+│     method: handler1 },             │
+│   { type: 'Text',                   │
+│     event: 'onAppear',              │
+│     method: handler2 }              │
+│ ]                                   │
+└─────────────────────────────────────┘
+```
+
+#### 核心方法
+
+```typescript
+class ViewTreeCallbackExtractor {
+    /**
+     * 从 Component 提取所有 UI 回调
+     */
+    extractFromComponent(componentClass: ArkClass): UICallbackInfo[] {
+        // 1. 获取 ViewTree
+        const viewTree = componentClass.getViewTree();
+        
+        // 2. 获取根节点
+        const root = viewTree.getRoot();
+        
+        // 3. 递归遍历
+        this.walkViewTree(root, callbacks);
+        
+        return callbacks;
+    }
+    
+    /**
+     * 遍历 ViewTree
+     * 
+     * ViewTree 结构示例:
+     * 
+     *   Column (root)
+     *     ├── Text
+     *     │     └── attributes: { text: 'Hello' }
+     *     └── Button
+     *           └── attributes: { onClick: [handler] }  ← 我们要找的！
+     */
+    private walkViewTree(node, callbacks) {
+        // 提取当前节点的回调
+        for (const [name, value] of node.attributes) {
+            if (isEventAttribute(name)) {  // onClick, onTouch...
+                const method = resolveCallbackMethod(value);
+                callbacks.push({
+                    componentType: node.name,  // "Button"
+                    eventType: name,           // "onClick"
+                    callbackMethod: method
+                });
+            }
+        }
+        
+        // 递归处理子节点
+        for (const child of node.children) {
+            this.walkViewTree(child, callbacks);
+        }
+    }
+}
+```
+
+#### ViewTree 遍历示意
+
+```
+源代码:
+build() {
+    Column() {
+        Text('Title')
+        Button('Submit')
+            .onClick(() => { submit(); })
+        Row() {
+            Image('icon.png')
+                .onAppear(() => { load(); })
+        }
+    }
+}
+
+ViewTree 结构:                    提取结果:
+     Column                       
+       │                          ┌──────────────────────────────┐
+       ├── Text                   │ 1. Button.onClick → submit   │
+       │                          │ 2. Image.onAppear → load     │
+       ├── Button ←── onClick     └──────────────────────────────┘
+       │
+       └── Row
+             │
+             └── Image ←── onAppear
+```
+
+---
+
+### 4.4 LifecycleModelCreator.ts — 核心构建器
+
+**角色**：总指挥，协调所有部件，生成最终的 DummyMain。
+
+**类比**：就像建筑工地的项目经理，调度各个工种完成整栋大楼。
+
+#### 构建流程
+
+```mermaid
+sequenceDiagram
+    participant User as 使用者
+    participant Creator as LifecycleModelCreator
+    participant Collector as AbilityCollector
+    participant Extractor as ViewTreeCallbackExtractor
+    participant CFG as CFG Builder
+    
+    User->>Creator: create()
+    
+    Note over Creator: Step 1: 收集信息
+    Creator->>Collector: collectAllAbilities()
+    Collector-->>Creator: AbilityInfo[]
+    Creator->>Collector: collectAllComponents()
+    Collector-->>Creator: ComponentInfo[]
+    
+    Note over Creator: Step 2: 提取回调
+    Creator->>Extractor: fillAllComponentCallbacks()
+    Extractor-->>Creator: UICallbackInfo[] (填入 ComponentInfo)
+    
+    Note over Creator: Step 3: 创建容器
+    Creator->>Creator: createDummyMainContainer()
+    Note right of Creator: 创建虚拟 File, Class, Method
+    
+    Note over Creator: Step 4: 构建 CFG
+    Creator->>CFG: buildDummyMainCfg()
+    CFG->>CFG: addStaticInitialization()
+    CFG->>CFG: createMainLoopStructure()
+    loop 每个 Ability
+        CFG->>CFG: addAbilityLifecycleBranch()
+    end
+    loop 每个 Component
+        CFG->>CFG: addComponentLifecycleBranch()
+    end
+    CFG-->>Creator: Cfg
+    
+    Note over Creator: Step 5: 注册
+    Creator->>Creator: scene.addToMethodsMap()
+    
+    Creator-->>User: 完成！
+```
+
+#### 核心方法详解
+
+```typescript
+class LifecycleModelCreator {
+    /**
+     * 主入口方法
+     * 
+     * 执行完整的构建流程
+     */
+    create(): void {
+        // Step 1: 收集所有 Ability 和 Component
+        this.collectAbilitiesAndComponents();
+        
+        // Step 2: 从 ViewTree 提取 UI 回调
+        this.extractUICallbacks();
+        
+        // Step 3: 创建 DummyMain 的"外壳"
+        this.createDummyMainContainer();
+        
+        // Step 4: 构建控制流图
+        this.buildDummyMainCfg();
+        
+        // Step 5: 注册到 Scene
+        this.scene.addToMethodsMap(this.dummyMain);
+    }
+    
+    /**
+     * 构建 CFG
+     * 
+     * CFG (Control Flow Graph) 控制流图
+     * 表示程序的执行路径
+     */
+    private buildDummyMainCfg(): void {
+        // 创建入口块
+        const entryBlock = new BasicBlock();
+        
+        // 添加静态初始化
+        this.addStaticInitialization(cfg, entryBlock);
+        
+        // 创建 while(true) 循环
+        const { whileBlock, countLocal } = this.createMainLoopStructure();
+        
+        // 为每个 Ability 创建分支
+        for (const ability of this.abilities) {
+            this.addAbilityLifecycleBranch(ability, ...);
+        }
+        
+        // 为每个 Component 创建分支
+        for (const component of this.components) {
+            this.addComponentLifecycleBranch(component, ...);
+        }
+    }
+    
+    /**
+     * 添加 Ability 生命周期分支
+     * 
+     * 生成的代码结构:
+     * if (count == N) {
+     *     ability = new AbilityClass();
+     *     ability.onCreate(want);
+     *     ability.onWindowStageCreate(windowStage);
+     *     ability.onForeground();
+     *     // ...
+     * }
+     */
+    private addAbilityLifecycleBranch(ability: AbilityInfo, ...): BasicBlock[] {
+        // 创建条件块: if (count == N)
+        const ifBlock = createIfBlock(count == branchIndex);
+        
+        // 创建调用块
+        const invokeBlock = new BasicBlock();
+        
+        // 实例化 Ability
+        const local = new Local('ability', AbilityType);
+        addStmt(invokeBlock, `${local} = new ${ability.name}()`);
+        
+        // 按顺序调用生命周期方法
+        for (const stage of [CREATE, WINDOW_STAGE_CREATE, FOREGROUND, ...]) {
+            const method = ability.lifecycleMethods.get(stage);
+            if (method) {
+                addStmt(invokeBlock, `${local}.${method.getName()}()`);
+            }
+        }
+        
+        return [ifBlock, invokeBlock];
+    }
+}
+```
+
+---
+
+## 5. 完整流程解析
+
+### 5.1 从代码到 DummyMain 的完整旅程
+
+假设我们有这样一个鸿蒙项目：
+
+```typescript
+// EntryAbility.ets
+export default class EntryAbility extends UIAbility {
+    onCreate(want: Want) {
+        console.log('Ability created');
+    }
+    onForeground() {
+        console.log('Ability foreground');
+    }
+}
+
+// Index.ets
+@Entry
+@Component
+struct Index {
+    @State count: number = 0;
+    
+    aboutToAppear() {
+        console.log('Component appear');
+    }
+    
+    build() {
+        Column() {
+            Text(`Count: ${this.count}`)
+            Button('Add')
+                .onClick(() => {
+                    this.count++;
+                })
+        }
+    }
+}
+```
+
+### 5.2 流程图解
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           Step 1: 收集信息                               │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  Scene.getClasses() 返回:                                               │
+│  ┌─────────────────┐  ┌─────────────────┐                              │
+│  │ EntryAbility    │  │ Index           │                              │
+│  │ extends         │  │ @Component      │                              │
+│  │ UIAbility       │  │ @Entry          │                              │
+│  └────────┬────────┘  └────────┬────────┘                              │
+│           │                    │                                        │
+│           ▼                    ▼                                        │
+│  isAbilityClass()? ✓   isComponentClass()? ✓                           │
+│           │                    │                                        │
+│           ▼                    ▼                                        │
+│  ┌─────────────────┐  ┌─────────────────┐                              │
+│  │ AbilityInfo:    │  │ ComponentInfo:  │                              │
+│  │ name: Entry...  │  │ name: Index     │                              │
+│  │ methods:        │  │ methods:        │                              │
+│  │  onCreate ✓     │  │  aboutToAppear✓ │                              │
+│  │  onForeground ✓ │  │  build ✓        │                              │
+│  └─────────────────┘  └─────────────────┘                              │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         Step 2: 提取 UI 回调                             │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  Index.getViewTree():                                                   │
+│                                                                         │
+│       Column                                                            │
+│         ├── Text                                                        │
+│         │     └── attributes: {}                                        │
+│         └── Button                                                      │
+│               └── attributes: { onClick: [lambda] }                     │
+│                                      │                                  │
+│                                      ▼                                  │
+│                             ┌─────────────────┐                         │
+│                             │ UICallbackInfo: │                         │
+│                             │ type: Button    │                         │
+│                             │ event: onClick  │                         │
+│                             │ method: lambda  │                         │
+│                             └─────────────────┘                         │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          Step 3: 创建容器                                │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  创建虚拟结构:                                                           │
+│                                                                         │
+│  @extendedDummyFile (虚拟文件)                                          │
+│      └── @extendedDummyClass (虚拟类)                                   │
+│              └── @extendedDummyMain() (虚拟方法) ← 这就是我们的目标      │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          Step 4: 构建 CFG                                │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  生成的控制流图:                                                         │
+│                                                                         │
+│  ┌─────────────┐                                                        │
+│  │ Entry Block │ staticInit(); count = 0;                               │
+│  └──────┬──────┘                                                        │
+│         │                                                               │
+│         ▼                                                               │
+│  ┌─────────────┐◄─────────────────────────────────────┐                │
+│  │ While Block │ while (true)                         │                │
+│  └──────┬──────┘                                      │                │
+│         │                                             │                │
+│    ┌────┴────┐                                        │                │
+│    ▼         ▼                                        │                │
+│ ┌─────┐   ┌─────┐                                     │                │
+│ │if==1│   │if==2│                                     │                │
+│ └──┬──┘   └──┬──┘                                     │                │
+│    │         │                                        │                │
+│    ▼         ▼                                        │                │
+│ ┌──────────────────┐  ┌──────────────────────────┐   │                │
+│ │ Ability 分支:    │  │ Component 分支:          │   │                │
+│ │ ability = new    │  │ comp = new Index()       │   │                │
+│ │   EntryAbility() │  │ comp.aboutToAppear()     │   │                │
+│ │ ability.onCreate │  │ comp.build()             │   │                │
+│ │ ability.onFore.. │  │ comp.onClick_handler()   │   │                │
+│ └────────┬─────────┘  └────────────┬─────────────┘   │                │
+│          │                         │                  │                │
+│          └─────────────────────────┴──────────────────┘                │
+│                                                                         │
+│         ▼                                                               │
+│  ┌──────────────┐                                                       │
+│  │ Return Block │ return;                                               │
+│  └──────────────┘                                                       │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          Step 5: 注册到 Scene                            │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  scene.addToMethodsMap(dummyMain)                                       │
+│                                                                         │
+│  现在可以：                                                              │
+│  - scene.getMethod("@extendedDummyMain") 获取这个方法                   │
+│  - dummyMain.getCfg() 获取控制流图                                      │
+│  - 用于后续的污点分析、数据流分析等                                       │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 6. 类与函数详解
+
+### 6.1 枚举类型
+
+| 枚举 | 用途 | 值示例 |
+|------|------|--------|
+| `AbilityLifecycleStage` | Ability 生命周期阶段 | `CREATE`, `FOREGROUND`, `DESTROY` |
+| `ComponentLifecycleStage` | Component 生命周期阶段 | `ABOUT_TO_APPEAR`, `BUILD` |
+| `UIEventType` | UI 事件类型 | `ON_CLICK`, `ON_TOUCH` |
+| `NavigationType` | 页面跳转类型 | `START_ABILITY`, `ROUTER_PUSH` |
+
+### 6.2 接口类型
+
+#### AbilityInfo
+
+```typescript
+interface AbilityInfo {
+    arkClass: ArkClass;        // 原始类引用
+    signature: ClassSignature; // 类签名（唯一标识）
+    name: string;              // 类名
+    lifecycleMethods: Map;     // 生命周期方法集合
+    components: ComponentInfo[];// 关联的 UI 组件
+    navigationTargets: [];     // 可跳转的目标
+    isEntry: boolean;          // 是否是启动入口
+}
+```
+
+#### ComponentInfo
+
+```typescript
+interface ComponentInfo {
+    arkClass: ArkClass;
+    signature: ClassSignature;
+    name: string;
+    lifecycleMethods: Map;     // aboutToAppear, build 等
+    uiCallbacks: UICallbackInfo[]; // 从 ViewTree 提取的回调
+    isEntry: boolean;          // 是否有 @Entry 装饰器
+}
+```
+
+#### UICallbackInfo
+
+```typescript
+interface UICallbackInfo {
+    componentType: string;     // "Button", "Text", "Image"
+    eventType: UIEventType;    // ON_CLICK, ON_TOUCH
+    callbackMethod: ArkMethod; // 实际的回调函数
+    relatedStateValues: [];    // 依赖的 @State 变量
+    viewTreeNode?: ViewTreeNode; // ViewTree 节点引用
+}
+```
+
+### 6.3 核心类
+
+#### AbilityCollector
+
+| 方法 | 参数 | 返回值 | 说明 |
+|------|------|--------|------|
+| `constructor` | `scene: Scene` | - | 初始化收集器 |
+| `collectAllAbilities` | - | `AbilityInfo[]` | 收集所有 Ability |
+| `collectAllComponents` | - | `ComponentInfo[]` | 收集所有 Component |
+| `getEntryAbility` | - | `AbilityInfo \| null` | 获取入口 Ability |
+| `getAbilityBySignature` | `ClassSignature` | `AbilityInfo \| undefined` | 按签名查找 |
+
+#### ViewTreeCallbackExtractor
+
+| 方法 | 参数 | 返回值 | 说明 |
+|------|------|--------|------|
+| `constructor` | `scene: Scene` | - | 初始化提取器 |
+| `extractFromComponent` | `ArkClass` | `UICallbackInfo[]` | 提取单个组件的回调 |
+| `fillComponentCallbacks` | `ComponentInfo` | `void` | 填充组件的回调信息 |
+| `fillAllComponentCallbacks` | `ComponentInfo[]` | `void` | 批量填充 |
+
+#### LifecycleModelCreator
+
+| 方法 | 参数 | 返回值 | 说明 |
+|------|------|--------|------|
+| `constructor` | `scene, config?` | - | 初始化创建器 |
+| `create` | - | `void` | **主入口**，执行完整构建 |
+| `getDummyMain` | - | `ArkMethod` | 获取生成的 DummyMain |
+| `getAbilities` | - | `AbilityInfo[]` | 获取收集到的 Ability |
+| `getComponents` | - | `ComponentInfo[]` | 获取收集到的 Component |
+
+---
+
+## 7. 使用示例
+
+### 7.1 基本使用
+
+```typescript
+import { Scene } from '../Scene';
+import { LifecycleModelCreator } from './TEST_lifecycle';
+
+// 1. 构建 Scene（已有代码）
+const scene = new Scene();
+scene.buildSceneFromProjectDir('/path/to/project');
+
+// 2. 创建扩展版 DummyMain
+const creator = new LifecycleModelCreator(scene);
+creator.create();
+
+// 3. 获取结果
+const dummyMain = creator.getDummyMain();
+console.log('DummyMain 签名:', dummyMain.getSignature().toString());
+console.log('CFG 块数量:', dummyMain.getCfg()?.getBlocks().length);
+```
+
+### 7.2 自定义配置
+
+```typescript
+const creator = new LifecycleModelCreator(scene, {
+    // 禁用多 Ability 跳转建模
+    enableMultiAbilityNavigation: false,
+    
+    // 启用精细化 UI 回调
+    enableFineGrainedUICallbacks: true,
+    
+    // 自定义生命周期顺序
+    lifecycleOrder: [
+        AbilityLifecycleStage.CREATE,
+        AbilityLifecycleStage.FOREGROUND,
+        // 跳过其他阶段
+    ],
+    
+    // 最大跳转深度
+    maxNavigationDepth: 5,
+});
+```
+
+### 7.3 单独使用收集器
+
+```typescript
+import { AbilityCollector, ViewTreeCallbackExtractor } from './TEST_lifecycle';
+
+// 只收集信息，不构建 DummyMain
+const collector = new AbilityCollector(scene);
+const abilities = collector.collectAllAbilities();
+const components = collector.collectAllComponents();
+
+// 打印结果
+console.log('找到的 Ability:');
+for (const ability of abilities) {
+    console.log(`  - ${ability.name}`);
+    for (const [stage, method] of ability.lifecycleMethods) {
+        console.log(`      ${stage}: ${method.getName()}`);
+    }
+}
+
+// 单独提取回调
+const extractor = new ViewTreeCallbackExtractor(scene);
+for (const component of components) {
+    const callbacks = extractor.extractFromComponent(component.arkClass);
+    console.log(`${component.name} 的 UI 回调:`, callbacks.length);
+}
+```
+
+---
+
+## 8. TODO 与扩展点
+
+### 8.1 待实现功能
+
+| 位置 | 功能 | 优先级 | 说明 |
+|------|------|--------|------|
+| `AbilityCollector.analyzeNavigationTargets()` | 跳转分析 | 高 | 解析 startAbility/router 调用 |
+| `AbilityCollector.checkIsEntryAbility()` | 入口识别 | 中 | 读取 module.json5 配置 |
+| `ViewTreeCallbackExtractor.resolveCallbackMethod()` | 匿名函数解析 | 高 | 处理 lambda 表达式 |
+| `LifecycleModelCreator.addMethodInvocation()` | 参数生成 | 中 | 生成 Want, WindowStage 等参数 |
+| `LifecycleModelCreator.addUICallbackInvocation()` | 控件实例化 | 低 | 为每个控件创建实例 |
+
+### 8.2 扩展建议
+
+#### 添加新的生命周期阶段
+
+```typescript
+// 在 LifecycleTypes.ts 中添加
+enum AbilityLifecycleStage {
+    // ... 现有阶段
+    ON_NEW_WANT = 'onNewWant',  // 新增
+}
+
+// 在 AbilityCollector.ts 中处理
+case 'onNewWant':
+    methods.set(AbilityLifecycleStage.ON_NEW_WANT, method);
+    break;
+```
+
+#### 添加新的 UI 事件类型
+
+```typescript
+// 在 LifecycleTypes.ts 中添加
+enum UIEventType {
+    // ... 现有类型
+    ON_SCROLL = 'onScroll',  // 新增
+}
+
+// 在 ViewTreeCallbackExtractor.ts 中添加映射
+const METHOD_TO_EVENT_TYPE = new Map([
+    // ... 现有映射
+    ['onScroll', UIEventType.ON_SCROLL],
+]);
+```
+
+---
+
+## 9. 常见问题
+
+### Q1: 为什么需要 while(true) 循环？
+
+**答**：因为在实际应用中，生命周期方法的调用顺序是**非确定性**的。用户可能：
+- 按 Home 键（触发 onBackground）
+- 再打开应用（触发 onForeground）
+- 点击按钮（触发 onClick）
+- ...
+
+`while(true)` + `if (count == N)` 的结构模拟了这种非确定性，让每个分支都**可能**被执行。
+
+### Q2: 这个模块和原版 DummyMainCreater 冲突吗？
+
+**答**：不冲突。两者是独立的：
+- 原版生成 `@dummyMain`
+- 本模块生成 `@extendedDummyMain`
+
+可以同时使用，或者用本模块完全替代原版。
+
+### Q3: 生成的 DummyMain 如何用于污点分析？
+
+**答**：
+```typescript
+// 1. 构建 DummyMain
+const creator = new LifecycleModelCreator(scene);
+creator.create();
+const dummyMain = creator.getDummyMain();
+
+// 2. 获取 CFG
+const cfg = dummyMain.getCfg();
+
+// 3. 用于 IFDS 分析
+const problem = new TaintAnalysisProblem(source, sink);
+const solver = new IFDSSolver(cfg, problem);
+solver.solve();
+```
+
+### Q4: ViewTree 是什么时候构建的？
+
+**答**：ViewTree 是在 ArkAnalyzer 构建 Scene 时自动生成的。对于有 `build()` 方法的 `@Component` 类，ArkAnalyzer 会解析其 UI 结构并生成 ViewTree。
+
+我们的模块只是**读取**这个已有的 ViewTree，提取其中的回调信息。
+
+---
+
+## 📎 附录
+
+### A. 参考资料
+
+- 原版 DummyMainCreater: `src/core/common/DummyMainCreater.ts`
+- ViewTree 实现: `src/core/graph/ViewTree.ts`
+- ViewTree 构建器: `src/core/graph/builder/ViewTreeBuilder.ts`
+- 入口方法工具: `src/utils/entryMethodUtils.ts`
+
+### B. 版本历史
+
+| 版本 | 日期 | 说明 |
+|------|------|------|
+| 0.1.0 | 2025-01-17 | 初始框架，基本结构完成 |
+
+---
+
+> **作者**: AI Assistant  
+> **创建日期**: 2025-01-17  
+> **最后更新**: 2025-01-17
