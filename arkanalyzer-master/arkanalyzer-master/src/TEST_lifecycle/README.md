@@ -254,17 +254,17 @@ graph TD
 ```mermaid
 flowchart LR
     subgraph 输入
-        S[Scene<br/>整个项目的代码模型]
+        S["Scene<br/>整个项目的代码模型"]
     end
     
     subgraph 处理
-        A[收集 Ability] --> D[AbilityInfo[]]
-        B[收集 Component] --> E[ComponentInfo[]]
-        C[提取 ViewTree 回调] --> F[UICallbackInfo[]]
+        A[收集 Ability] --> D["AbilityInfo[]"]
+        B[收集 Component] --> E["ComponentInfo[]"]
+        C[提取 ViewTree 回调] --> F["UICallbackInfo[]"]
     end
     
     subgraph 输出
-        G[@extendedDummyMain<br/>虚拟入口方法]
+        G["@extendedDummyMain<br/>虚拟入口方法"]
     end
     
     S --> A
