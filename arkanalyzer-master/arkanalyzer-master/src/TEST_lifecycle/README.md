@@ -2,7 +2,7 @@
 
 > **扩展版生命周期建模框架**
 > 
-> 本模块扩展了 ArkAnalyzer 的 `DummyMainCreater`，实现多 Ability 支持和精细化 UI 回调建模。
+> 本模块扩展了 ArkAnalyzer 的 `DummyMainCreater`，实现多 Ability 支持和精细化 UI 回调建模。新的代码暂时放在了arkanalyzer-master\arkanalyzer-master\src\TEST_lifecycle目录下
 
 ---
 
@@ -1114,6 +1114,6 @@ solver.solve();
 
 ---
 
-> **作者**: AI Assistant  
+> **作者**: AI Assistant &  YiZhou
 > **创建日期**: 2025-01-17  
 > **最后更新**: 2025-01-17
