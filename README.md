@@ -95,7 +95,7 @@ flowchart LR
     B --> E[构建 DummyMain CFG]
     C --> E
     D --> E
-    E --> F[@extendedDummyMain]
+    E --> F["@extendedDummyMain"]
 ```
 
 ---
