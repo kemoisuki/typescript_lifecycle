@@ -24,6 +24,8 @@
  * - 分析页面跳转关系（startAbility, router.pushUrl 等）
  */
 
+import * as fs from 'fs';
+import * as path from 'path';
 import { Scene } from '../Scene';
 import { ArkClass } from '../core/model/ArkClass';
 import { ArkMethod } from '../core/model/ArkMethod';
@@ -99,6 +101,24 @@ const COMPONENT_LIFECYCLE_METHODS: string[] = [
  * const components = collector.collectAllComponents();
  * ```
  */
+/**
+ * module.json5 中的 Ability 配置
+ */
+interface ModuleAbilityConfig {
+    name: string;
+    srcEntry: string;
+    exported?: boolean;
+}
+
+/**
+ * module.json5 的解析结果
+ */
+interface ModuleConfig {
+    moduleName: string;
+    mainElement?: string;
+    abilities: ModuleAbilityConfig[];
+}
+
 export class AbilityCollector {
     /** 分析场景 */
     private scene: Scene;
@@ -111,10 +131,147 @@ export class AbilityCollector {
     
     /** 路由分析器 */
     private navigationAnalyzer: NavigationAnalyzer;
+    
+    /** 缓存：从 module.json5 读取的配置 */
+    private moduleConfigs: ModuleConfig[] = [];
+    
+    /** 缓存：入口 Ability 名称集合 */
+    private entryAbilityNames: Set<string> = new Set();
 
     constructor(scene: Scene) {
         this.scene = scene;
         this.navigationAnalyzer = new NavigationAnalyzer(scene);
+        this.loadModuleConfigs();
+    }
+    
+    /**
+     * 加载项目中所有的 module.json5 配置
+     * 
+     * 工作流程：
+     * ```
+     * ┌─────────────────────────────────────────────────────────────┐
+     * │  1. 获取项目根目录                                           │
+     * │  2. 递归查找所有 module.json5 文件                           │
+     * │  3. 解析每个文件，提取 mainElement 和 abilities              │
+     * │  4. 缓存入口 Ability 名称                                    │
+     * └─────────────────────────────────────────────────────────────┘
+     * ```
+     */
+    private loadModuleConfigs(): void {
+        const projectDir = this.scene.getRealProjectDir();
+        if (!projectDir) {
+            console.log('[AbilityCollector] No project directory, skipping module config loading');
+            return;
+        }
+        
+        console.log(`[AbilityCollector] Loading module configs from: ${projectDir}`);
+        
+        // 递归查找所有 module.json5 文件
+        const moduleFiles = this.findModuleJsonFiles(projectDir);
+        
+        for (const moduleFile of moduleFiles) {
+            const config = this.parseModuleJson(moduleFile);
+            if (config) {
+                this.moduleConfigs.push(config);
+                
+                // 记录入口 Ability
+                if (config.mainElement) {
+                    this.entryAbilityNames.add(config.mainElement);
+                    console.log(`[AbilityCollector] Found entry ability: ${config.mainElement} in ${moduleFile}`);
+                }
+            }
+        }
+        
+        console.log(`[AbilityCollector] Loaded ${this.moduleConfigs.length} module configs, ${this.entryAbilityNames.size} entry abilities`);
+    }
+    
+    /**
+     * 递归查找 module.json5 文件
+     */
+    private findModuleJsonFiles(dir: string, depth: number = 0): string[] {
+        const files: string[] = [];
+        
+        // 限制搜索深度，避免遍历太深
+        if (depth > 5) {
+            return files;
+        }
+        
+        try {
+            const entries = fs.readdirSync(dir, { withFileTypes: true });
+            
+            for (const entry of entries) {
+                const fullPath = path.join(dir, entry.name);
+                
+                if (entry.isDirectory()) {
+                    // 跳过 node_modules 和隐藏目录
+                    if (entry.name !== 'node_modules' && !entry.name.startsWith('.')) {
+                        files.push(...this.findModuleJsonFiles(fullPath, depth + 1));
+                    }
+                } else if (entry.name === 'module.json5') {
+                    files.push(fullPath);
+                }
+            }
+        } catch (error) {
+            // 忽略读取错误
+        }
+        
+        return files;
+    }
+    
+    /**
+     * 解析 module.json5 文件
+     * 
+     * module.json5 结构示例：
+     * ```json5
+     * {
+     *   "module": {
+     *     "name": "entry",
+     *     "mainElement": "EntryAbility",
+     *     "abilities": [
+     *       { "name": "EntryAbility", "srcEntry": "./ets/entryability/EntryAbility.ets" }
+     *     ]
+     *   }
+     * }
+     * ```
+     */
+    private parseModuleJson(filePath: string): ModuleConfig | null {
+        try {
+            const content = fs.readFileSync(filePath, 'utf-8');
+            
+            // 移除 JSON5 注释（简单处理）
+            const jsonContent = content
+                .replace(/\/\/.*$/gm, '')  // 移除单行注释
+                .replace(/\/\*[\s\S]*?\*\//g, '');  // 移除多行注释
+            
+            const parsed = JSON.parse(jsonContent);
+            const module = parsed.module;
+            
+            if (!module) {
+                return null;
+            }
+            
+            const config: ModuleConfig = {
+                moduleName: module.name || '',
+                mainElement: module.mainElement,
+                abilities: [],
+            };
+            
+            // 解析 abilities 数组
+            if (Array.isArray(module.abilities)) {
+                for (const ability of module.abilities) {
+                    config.abilities.push({
+                        name: ability.name || '',
+                        srcEntry: ability.srcEntry || '',
+                        exported: ability.exported,
+                    });
+                }
+            }
+            
+            return config;
+        } catch (error) {
+            console.log(`[AbilityCollector] Failed to parse ${filePath}: ${error}`);
+            return null;
+        }
     }
 
     // ========================================================================
@@ -452,13 +609,52 @@ export class AbilityCollector {
     /**
      * 检查是否是入口 Ability
      * 
-     * TODO: 从 module.json5 读取配置
+     * 判断逻辑：
+     * ```
+     * ┌─────────────────────────────────────────────────────────────┐
+     * │  1. 检查类名是否在 module.json5 的 mainElement 中          │
+     * │     ├─ 是 → 返回 true                                      │
+     * │     └─ 否 → 继续                                           │
+     * │                                                             │
+     * │  2. 后备方案：检查类名是否包含 "Entry" 或 "Main"            │
+     * │     （当 module.json5 未找到或解析失败时）                   │
+     * └─────────────────────────────────────────────────────────────┘
+     * ```
      */
     private checkIsEntryAbility(arkClass: ArkClass): boolean {
-        // TODO: 解析 module.json5 文件，查找 mainElement 配置
-        // 当前简化：检查类名是否包含 "Entry" 或 "Main"
         const className = arkClass.getName();
-        return className.includes('Entry') || className.includes('Main');
+        
+        // 方法1: 从缓存的 module.json5 配置中查找
+        if (this.entryAbilityNames.size > 0) {
+            if (this.entryAbilityNames.has(className)) {
+                console.log(`[AbilityCollector] ${className} is entry ability (from module.json5)`);
+                return true;
+            }
+            // 如果已经加载了配置但类名不在其中，不使用后备方案
+            return false;
+        }
+        
+        // 方法2: 后备方案 - 检查类名是否包含 "Entry" 或 "Main"
+        // 仅在没有加载到 module.json5 配置时使用
+        const isEntry = className.includes('Entry') || className.includes('Main');
+        if (isEntry) {
+            console.log(`[AbilityCollector] ${className} is entry ability (heuristic)`);
+        }
+        return isEntry;
+    }
+    
+    /**
+     * 获取所有入口 Ability 名称
+     */
+    public getEntryAbilityNames(): Set<string> {
+        return this.entryAbilityNames;
+    }
+    
+    /**
+     * 获取所有 module 配置
+     */
+    public getModuleConfigs(): ModuleConfig[] {
+        return this.moduleConfigs;
     }
 
     // ========================================================================

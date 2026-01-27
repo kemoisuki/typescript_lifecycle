@@ -124,10 +124,11 @@ flowchart LR
 ### 已完成 ✅
 - [x] 实现 `NavigationAnalyzer` - 路由分析器（支持 loadContent/pushUrl/replaceUrl/startAbility）
 - [x] 实现 `analyzeNavigationTargets()` - 页面跳转分析
+- [x] 完善 `extractRouterUrl()` - 支持追踪变量定义和对象参数解析
+- [x] 完善 `extractWantTarget()` - 解析 Want 对象获取目标 Ability
+- [x] 实现 `checkIsEntryAbility()` - 从 module.json5 读取入口配置
 
 ### 待完成
-- [ ] 完善路由参数解析 - 支持变量和对象参数
-- [ ] 实现 `checkIsEntryAbility()` - 从 module.json5 读取入口配置
 - [ ] 完善 `resolveCallbackMethod()` - 处理匿名函数
 - [ ] 实现 `addMethodInvocation()` - 生成方法参数
 - [ ] 实现 `addUICallbackInvocation()` - 控件实例化
@@ -145,6 +146,7 @@ flowchart LR
 
 | 日期 | 版本 | 说明 |
 |------|------|------|
+| 2025-01-27 | v0.3.0 | 完善路由参数解析和 module.json5 入口识别 |
 | 2025-01-27 | v0.2.0 | 新增 NavigationAnalyzer 路由分析器 |
 | 2025-01-17 | v0.1.0 | 初始框架完成，包含基本结构和文档 |
 

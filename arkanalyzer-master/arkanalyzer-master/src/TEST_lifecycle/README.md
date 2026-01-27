@@ -1169,17 +1169,18 @@ for (const component of components) {
 |------|------|--------|------|
 | `NavigationAnalyzer.ts` | 路由分析器 | ✅ 完成 | 新增模块，专门处理路由分析 |
 | `AbilityCollector.analyzeNavigationTargets()` | 跳转分析 | ✅ 完成 | 解析 loadContent/pushUrl/startAbility |
+| `NavigationAnalyzer.extractRouterUrl()` | 对象参数解析 | ✅ 完成 | 支持追踪变量定义和字段赋值 |
+| `NavigationAnalyzer.extractWantTarget()` | Want 对象解析 | ✅ 完成 | 解析 abilityName 字段 |
+| `AbilityCollector.checkIsEntryAbility()` | 入口识别 | ✅ 完成 | 读取 module.json5 的 mainElement |
 
 ### 8.2 待实现功能
 
 | 位置 | 功能 | 优先级 | 说明 |
 |------|------|--------|------|
-| `NavigationAnalyzer.extractRouterUrl()` | 对象参数解析 | 高 | 解析 `{ url: variable }` 形式 |
-| `NavigationAnalyzer.extractWantTarget()` | Want 对象解析 | 高 | 解析 startAbility 的 Want 参数 |
-| `AbilityCollector.checkIsEntryAbility()` | 入口识别 | 中 | 读取 module.json5 配置 |
 | `ViewTreeCallbackExtractor.resolveCallbackMethod()` | 匿名函数解析 | 中 | 处理 lambda 表达式 |
 | `LifecycleModelCreator.addMethodInvocation()` | 参数生成 | 中 | 生成 Want, WindowStage 等参数 |
 | `LifecycleModelCreator.addUICallbackInvocation()` | 控件实例化 | 低 | 为每个控件创建实例 |
+| 路由参数数据流分析 | 复杂参数解析 | 低 | 处理动态计算的路由参数 |
 
 ### 8.3 扩展建议
 
@@ -1276,7 +1277,8 @@ solver.solve();
 | 版本 | 日期 | 说明 |
 |------|------|------|
 | 0.1.0 | 2025-01-17 | 初始框架，基本结构完成 |
-| 0.2.0 | 2025-01-27 | 新增 NavigationAnalyzer 路由分析器，实现 loadContent/pushUrl/startAbility 解析 |
+| 0.2.0 | 2025-01-27 | 新增 NavigationAnalyzer 路由分析器 |
+| 0.3.0 | 2025-01-27 | 完善路由参数解析和 module.json5 入口识别 |
 
 ---
 

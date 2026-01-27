@@ -47,11 +47,12 @@ import { Scene } from '../Scene';
 import { ArkClass } from '../core/model/ArkClass';
 import { ArkMethod } from '../core/model/ArkMethod';
 import { Stmt, ArkAssignStmt, ArkInvokeStmt } from '../core/base/Stmt';
-import { AbstractInvokeExpr, ArkInstanceInvokeExpr } from '../core/base/Expr';
+import { AbstractInvokeExpr, ArkInstanceInvokeExpr, ArkNewExpr } from '../core/base/Expr';
 import { Constant } from '../core/base/Constant';
 import { Value } from '../core/base/Value';
 import { Local } from '../core/base/Local';
-import { StringType } from '../core/base/Type';
+import { StringType, ClassType } from '../core/base/Type';
+import { ArkInstanceFieldRef } from '../core/base/Ref';
 import {
     AbilityNavigationTarget,
     NavigationType,
@@ -435,9 +436,27 @@ export class NavigationAnalyzer {
     /**
      * 从 router.pushUrl/replaceUrl 调用中提取目标 URL
      * 
-     * router.pushUrl({ url: 'pages/Detail' })
+     * 支持以下几种情况：
+     * 1. router.pushUrl({ url: 'pages/Detail' })  - 对象字面量
+     * 2. router.pushUrl(options)                   - 变量引用
+     * 3. router.pushUrl('pages/Detail')           - 直接字符串（简化情况）
      * 
-     * 参数是一个对象，需要提取其中的 url 属性
+     * 解析流程：
+     * ```
+     * ┌─────────────────────────────────────────────────────────────┐
+     * │  参数类型判断                                                │
+     * │      │                                                      │
+     * │      ├─→ Constant (字符串) → 直接返回值                      │
+     * │      │                                                      │
+     * │      └─→ Local (变量) → 追踪定义语句                         │
+     * │              │                                              │
+     * │              ▼                                              │
+     * │         查找 declaringStmt                                  │
+     * │              │                                              │
+     * │              ▼                                              │
+     * │         分析 rightOp → 查找 url 属性的赋值                   │
+     * └─────────────────────────────────────────────────────────────┘
+     * ```
      */
     private extractRouterUrl(invokeExpr: AbstractInvokeExpr): string | null {
         const args = invokeExpr.getArgs();
@@ -452,18 +471,139 @@ export class NavigationAnalyzer {
             return firstArg.getValue();
         }
 
-        // 情况2: 传入对象 { url: 'xxx' }
-        // 需要追踪变量定义，这里暂时返回 null
-        // TODO: 实现对象属性解析
-        
-        // 尝试从变量名推断（临时方案）
+        // 情况2: 传入 Local 变量
         if (firstArg instanceof Local) {
-            const localName = firstArg.getName();
-            // 如果变量名包含页面信息，尝试提取
-            // 这是一个启发式方法，不够准确
-            console.log(`[NavigationAnalyzer] Router arg is Local: ${localName}`);
+            return this.extractUrlFromLocalObject(firstArg);
         }
 
+        return null;
+    }
+
+    /**
+     * 从 Local 对象中提取 url 属性值
+     * 
+     * 处理形如：
+     * ```typescript
+     * let options = { url: 'pages/Detail' };
+     * router.pushUrl(options);
+     * ```
+     * 
+     * 或者：
+     * ```typescript
+     * let options: RouterOptions = new RouterOptions();
+     * options.url = 'pages/Detail';
+     * router.pushUrl(options);
+     * ```
+     */
+    private extractUrlFromLocalObject(local: Local): string | null {
+        const localName = local.getName();
+        console.log(`[NavigationAnalyzer] Extracting url from Local: ${localName}`);
+        
+        // 获取变量的定义语句
+        const declaringStmt = local.getDeclaringStmt();
+        if (!declaringStmt) {
+            console.log(`[NavigationAnalyzer] No declaring stmt for ${localName}`);
+            return null;
+        }
+
+        // 如果定义语句是赋值语句，分析右操作数
+        if (declaringStmt instanceof ArkAssignStmt) {
+            const rightOp = declaringStmt.getRightOp();
+            
+            // 情况2a: 右操作数是另一个 Local（可能是参数或其他变量）
+            if (rightOp instanceof Local) {
+                // 递归追踪
+                return this.extractUrlFromLocalObject(rightOp);
+            }
+        }
+
+        // 查找对该对象 url 属性的赋值
+        // 遍历 usedStmts 查找 obj.url = 'xxx' 形式的赋值
+        const urlValue = this.findFieldAssignment(local, 'url');
+        if (urlValue) {
+            return urlValue;
+        }
+
+        // 尝试从对象的初始化过程中查找
+        return this.findUrlInObjectInitialization(local);
+    }
+
+    /**
+     * 查找对象字段的赋值语句
+     * 
+     * 查找形如 obj.fieldName = 'value' 的语句
+     */
+    private findFieldAssignment(local: Local, fieldName: string): string | null {
+        // 获取该变量被使用的所有语句
+        const usedStmts = local.getUsedStmts();
+        
+        for (const stmt of usedStmts) {
+            if (stmt instanceof ArkAssignStmt) {
+                const leftOp = stmt.getLeftOp();
+                
+                // 检查是否是字段赋值 obj.url = xxx
+                if (leftOp instanceof ArkInstanceFieldRef) {
+                    const base = leftOp.getBase();
+                    const field = leftOp.getFieldName();
+                    
+                    if (base.getName() === local.getName() && field === fieldName) {
+                        const rightOp = stmt.getRightOp();
+                        if (rightOp instanceof Constant && rightOp.getType() instanceof StringType) {
+                            console.log(`[NavigationAnalyzer] Found field assignment: ${local.getName()}.${fieldName} = '${rightOp.getValue()}'`);
+                            return rightOp.getValue();
+                        }
+                    }
+                }
+            }
+        }
+        
+        return null;
+    }
+
+    /**
+     * 从对象初始化过程中查找 url 值
+     * 
+     * 处理对象字面量的情况，ArkAnalyzer 可能将其转换为多个语句
+     */
+    private findUrlInObjectInitialization(local: Local): string | null {
+        const declaringStmt = local.getDeclaringStmt();
+        if (!declaringStmt || !(declaringStmt instanceof ArkAssignStmt)) {
+            return null;
+        }
+
+        // 获取所在方法的 CFG
+        const cfg = declaringStmt.getCfg();
+        if (!cfg) {
+            return null;
+        }
+
+        // 遍历 CFG 中该定义语句之后的语句，查找字段赋值
+        let foundDeclaring = false;
+        for (const block of cfg.getBlocks()) {
+            for (const stmt of block.getStmts()) {
+                if (stmt === declaringStmt) {
+                    foundDeclaring = true;
+                    continue;
+                }
+                
+                if (foundDeclaring && stmt instanceof ArkAssignStmt) {
+                    const leftOp = stmt.getLeftOp();
+                    if (leftOp instanceof ArkInstanceFieldRef) {
+                        const base = leftOp.getBase();
+                        const fieldName = leftOp.getFieldName();
+                        
+                        if (base.getName() === local.getName() && fieldName === 'url') {
+                            const rightOp = stmt.getRightOp();
+                            if (rightOp instanceof Constant && rightOp.getType() instanceof StringType) {
+                                console.log(`[NavigationAnalyzer] Found url in init: ${rightOp.getValue()}`);
+                                return rightOp.getValue();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
         return null;
     }
 
@@ -471,10 +611,28 @@ export class NavigationAnalyzer {
      * 从 startAbility(want) 调用中提取目标 Ability
      * 
      * Want 对象结构：
-     * {
+     * ```typescript
+     * let want: Want = {
      *     bundleName: 'com.example.app',
      *     abilityName: 'SecondAbility'
-     * }
+     * };
+     * ```
+     * 
+     * 解析流程：
+     * ```
+     * ┌─────────────────────────────────────────────────────────────┐
+     * │  startAbility(want)                                         │
+     * │      │                                                      │
+     * │      ▼                                                      │
+     * │  want 是 Local → 追踪定义                                   │
+     * │      │                                                      │
+     * │      ▼                                                      │
+     * │  查找 want.abilityName 的赋值                               │
+     * │      │                                                      │
+     * │      ▼                                                      │
+     * │  返回 abilityName 值                                        │
+     * └─────────────────────────────────────────────────────────────┘
+     * ```
      */
     private extractWantTarget(
         invokeExpr: AbstractInvokeExpr,
@@ -487,17 +645,66 @@ export class NavigationAnalyzer {
 
         const wantArg = args[0];
         
-        // TODO: 实现 Want 对象解析
-        // 需要追踪变量定义，分析对象字面量
-        
         if (wantArg instanceof Local) {
-            const localName = wantArg.getName();
-            console.log(`[NavigationAnalyzer] startAbility arg is Local: ${localName}`);
+            console.log(`[NavigationAnalyzer] Extracting Want target from Local: ${wantArg.getName()}`);
             
-            // 尝试从方法的 CFG 中查找 Want 对象的定义
-            // 这里需要简单的数据流分析
+            // 优先查找 abilityName 字段
+            const abilityName = this.findFieldAssignment(wantArg, 'abilityName');
+            if (abilityName) {
+                return abilityName;
+            }
+            
+            // 如果没找到，尝试从初始化过程中查找
+            return this.findAbilityNameInWantInit(wantArg);
         }
 
+        return null;
+    }
+
+    /**
+     * 从 Want 对象初始化中查找 abilityName
+     */
+    private findAbilityNameInWantInit(local: Local): string | null {
+        const declaringStmt = local.getDeclaringStmt();
+        if (!declaringStmt || !(declaringStmt instanceof ArkAssignStmt)) {
+            return null;
+        }
+
+        const cfg = declaringStmt.getCfg();
+        if (!cfg) {
+            return null;
+        }
+
+        // 遍历查找 abilityName 字段赋值
+        let foundDeclaring = false;
+        for (const block of cfg.getBlocks()) {
+            for (const stmt of block.getStmts()) {
+                if (stmt === declaringStmt) {
+                    foundDeclaring = true;
+                    continue;
+                }
+                
+                if (foundDeclaring && stmt instanceof ArkAssignStmt) {
+                    const leftOp = stmt.getLeftOp();
+                    if (leftOp instanceof ArkInstanceFieldRef) {
+                        const base = leftOp.getBase();
+                        const fieldName = leftOp.getFieldName();
+                        
+                        // 查找 abilityName 或 bundleName
+                        if (base.getName() === local.getName()) {
+                            if (fieldName === 'abilityName') {
+                                const rightOp = stmt.getRightOp();
+                                if (rightOp instanceof Constant && rightOp.getType() instanceof StringType) {
+                                    console.log(`[NavigationAnalyzer] Found abilityName: ${rightOp.getValue()}`);
+                                    return rightOp.getValue();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
         return null;
     }
 
