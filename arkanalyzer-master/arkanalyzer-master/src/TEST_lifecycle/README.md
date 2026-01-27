@@ -198,7 +198,16 @@ TEST_lifecycle/
 │   │
 │   ├── collectAllAbilities()        # 收集所有 Ability
 │   ├── collectAllComponents()       # 收集所有 Component
-│   └── analyzeNavigationTargets()   # 分析跳转关系 (TODO)
+│   └── analyzeNavigationTargets()   # 分析跳转关系 ✅
+│
+├── 📄 NavigationAnalyzer.ts         # 🆕 路由分析器
+│   │   分析代码中的页面跳转关系
+│   │
+│   ├── analyzeClass()               # 分析一个类的所有路由
+│   ├── handleLoadContent()          # 处理 windowStage.loadContent
+│   ├── handleRouterPush()           # 处理 router.pushUrl
+│   ├── handleRouterReplace()        # 处理 router.replaceUrl
+│   └── handleStartAbility()         # 处理 startAbility
 │
 ├── 📄 ViewTreeCallbackExtractor.ts  # 回调提取器
 │   │   从 ViewTree 中精细化提取 UI 回调
@@ -425,7 +434,155 @@ flowchart TD
 
 ---
 
-### 4.3 ViewTreeCallbackExtractor.ts — 回调提取器
+### 4.3 NavigationAnalyzer.ts — 路由分析器 🆕
+
+**角色**：页面跳转的"追踪者"，分析代码中所有的路由/导航调用。
+
+**类比**：就像交通调度员，追踪所有车辆（页面）的行驶路线（跳转关系）。
+
+#### 什么是路由分析？
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         路由分析图解                             │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  源代码中的跳转调用:                                              │
+│                                                                 │
+│  // 1. Ability 加载初始页面                                      │
+│  windowStage.loadContent('pages/Index')                         │
+│                     ↓                                           │
+│  // 2. 页面间跳转                                                │
+│  router.pushUrl({ url: 'pages/Detail' })                        │
+│                     ↓                                           │
+│  // 3. Ability 间跳转                                           │
+│  context.startAbility({ abilityName: 'SecondAbility' })         │
+│                                                                 │
+│                     ↓↓↓                                         │
+│                                                                 │
+│  路由分析器提取出:                                                │
+│  ┌─────────────────────────────────────────┐                   │
+│  │  NavigationTarget[] = [                 │                   │
+│  │    { target: 'pages/Index',             │                   │
+│  │      type: LOAD_CONTENT },              │                   │
+│  │    { target: 'pages/Detail',            │                   │
+│  │      type: ROUTER_PUSH },               │                   │
+│  │    { target: 'SecondAbility',           │                   │
+│  │      type: START_ABILITY }              │                   │
+│  │  ]                                      │                   │
+│  └─────────────────────────────────────────┘                   │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### 支持的跳转方式
+
+| 方法 | 用途 | 示例 |
+|------|------|------|
+| `loadContent` | Ability 加载初始页面 | `windowStage.loadContent('pages/Index')` |
+| `pushUrl` | 页面跳转（可返回） | `router.pushUrl({ url: 'pages/Detail' })` |
+| `replaceUrl` | 页面替换（不可返回） | `router.replaceUrl({ url: 'pages/Login' })` |
+| `back` | 返回上一页 | `router.back()` |
+| `startAbility` | 启动新 Ability | `context.startAbility(want)` |
+
+#### 工作流程
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    NavigationAnalyzer 工作流程                   │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  输入: ArkClass (Ability 或 Component)                          │
+│         │                                                       │
+│         ▼                                                       │
+│  ┌─────────────────────────────────────────────────────┐       │
+│  │  for (method of class.getMethods()) {               │       │
+│  │      for (block of method.getCfg().getBlocks()) {   │       │
+│  │          for (stmt of block.getStmts()) {           │       │
+│  │              invokeExpr = stmt.getInvokeExpr();     │       │
+│  │              if (invokeExpr) {                      │       │
+│  │                  methodName = getMethodName();      │       │
+│  │                  switch (methodName) {              │       │
+│  │                      case 'loadContent': ...        │       │
+│  │                      case 'pushUrl': ...            │       │
+│  │                      case 'startAbility': ...       │       │
+│  │                  }                                  │       │
+│  │              }                                      │       │
+│  │          }                                          │       │
+│  │      }                                              │       │
+│  │  }                                                  │       │
+│  └─────────────────────────────────────────────────────┘       │
+│         │                                                       │
+│         ▼                                                       │
+│  输出: NavigationAnalysisResult {                               │
+│      initialPage: 'pages/Index',                               │
+│      navigationTargets: [...],                                 │
+│      warnings: [...]                                           │
+│  }                                                              │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### 使用示例
+
+```typescript
+import { NavigationAnalyzer } from './NavigationAnalyzer';
+
+const analyzer = new NavigationAnalyzer(scene);
+
+// 分析一个 Ability
+const result = analyzer.analyzeClass(entryAbilityClass);
+
+console.log('初始页面:', result.initialPage);
+// 输出: 初始页面: pages/Index
+
+console.log('跳转目标:');
+for (const target of result.navigationTargets) {
+    console.log(`  ${target.navigationType}: ${target.targetAbilityName}`);
+}
+// 输出:
+//   ROUTER_PUSH: pages/Index
+//   ROUTER_PUSH: pages/Detail
+```
+
+#### 参数解析示意
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     参数解析过程                                 │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  情况 1: 直接字符串（可解析 ✅）                                  │
+│  ┌─────────────────────────────────────────┐                   │
+│  │  windowStage.loadContent('pages/Index')  │                   │
+│  │                          ↑               │                   │
+│  │                    Constant 类型         │                   │
+│  │                    直接提取 getValue()   │                   │
+│  └─────────────────────────────────────────┘                   │
+│                                                                 │
+│  情况 2: 变量引用（需要数据流分析 ⚠️）                            │
+│  ┌─────────────────────────────────────────┐                   │
+│  │  let page = 'pages/Detail';              │                   │
+│  │  router.pushUrl({ url: page });          │                   │
+│  │                        ↑                 │                   │
+│  │                  Local 类型              │                   │
+│  │           需要追踪变量定义（TODO）        │                   │
+│  └─────────────────────────────────────────┘                   │
+│                                                                 │
+│  情况 3: 动态计算（无法静态分析 ❌）                              │
+│  ┌─────────────────────────────────────────┐                   │
+│  │  let page = condition ? 'A' : 'B';       │                   │
+│  │  router.pushUrl({ url: page });          │                   │
+│  │                        ↑                 │                   │
+│  │           运行时才能确定，标记为 UNKNOWN  │                   │
+│  └─────────────────────────────────────────┘                   │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### 4.4 ViewTreeCallbackExtractor.ts — 回调提取器
 
 **角色**：UI 回调的"侦探"，从 ViewTree 中找出所有事件绑定。
 
@@ -1006,17 +1163,25 @@ for (const component of components) {
 
 ## 8. TODO 与扩展点
 
-### 8.1 待实现功能
+### 8.1 已完成功能 ✅
+
+| 位置 | 功能 | 状态 | 说明 |
+|------|------|--------|------|
+| `NavigationAnalyzer.ts` | 路由分析器 | ✅ 完成 | 新增模块，专门处理路由分析 |
+| `AbilityCollector.analyzeNavigationTargets()` | 跳转分析 | ✅ 完成 | 解析 loadContent/pushUrl/startAbility |
+
+### 8.2 待实现功能
 
 | 位置 | 功能 | 优先级 | 说明 |
 |------|------|--------|------|
-| `AbilityCollector.analyzeNavigationTargets()` | 跳转分析 | 高 | 解析 startAbility/router 调用 |
+| `NavigationAnalyzer.extractRouterUrl()` | 对象参数解析 | 高 | 解析 `{ url: variable }` 形式 |
+| `NavigationAnalyzer.extractWantTarget()` | Want 对象解析 | 高 | 解析 startAbility 的 Want 参数 |
 | `AbilityCollector.checkIsEntryAbility()` | 入口识别 | 中 | 读取 module.json5 配置 |
-| `ViewTreeCallbackExtractor.resolveCallbackMethod()` | 匿名函数解析 | 高 | 处理 lambda 表达式 |
+| `ViewTreeCallbackExtractor.resolveCallbackMethod()` | 匿名函数解析 | 中 | 处理 lambda 表达式 |
 | `LifecycleModelCreator.addMethodInvocation()` | 参数生成 | 中 | 生成 Want, WindowStage 等参数 |
 | `LifecycleModelCreator.addUICallbackInvocation()` | 控件实例化 | 低 | 为每个控件创建实例 |
 
-### 8.2 扩展建议
+### 8.3 扩展建议
 
 #### 添加新的生命周期阶段
 
@@ -1111,9 +1276,10 @@ solver.solve();
 | 版本 | 日期 | 说明 |
 |------|------|------|
 | 0.1.0 | 2025-01-17 | 初始框架，基本结构完成 |
+| 0.2.0 | 2025-01-27 | 新增 NavigationAnalyzer 路由分析器，实现 loadContent/pushUrl/startAbility 解析 |
 
 ---
 
 > **作者**: AI Assistant &  YiZhou
 > **创建日期**: 2025-01-17  
-> **最后更新**: 2025-01-17
+> **最后更新**: 2025-01-27

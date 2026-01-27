@@ -36,6 +36,7 @@ import {
     AbilityNavigationTarget,
     NavigationType,
 } from './LifecycleTypes';
+import { NavigationAnalyzer, NavigationAnalysisResult } from './NavigationAnalyzer';
 
 // ============================================================================
 // 常量定义
@@ -107,9 +108,13 @@ export class AbilityCollector {
     
     /** 缓存：已收集的 Component 信息 */
     private componentCache: Map<ClassSignature, ComponentInfo> = new Map();
+    
+    /** 路由分析器 */
+    private navigationAnalyzer: NavigationAnalyzer;
 
     constructor(scene: Scene) {
         this.scene = scene;
+        this.navigationAnalyzer = new NavigationAnalyzer(scene);
     }
 
     // ========================================================================
@@ -119,12 +124,39 @@ export class AbilityCollector {
     /**
      * 收集所有 Ability 信息
      * 
+     * 执行流程:
+     * ```
+     * ┌─────────────────────────────────────────────────────────────┐
+     * │                    收集流程（两阶段）                         │
+     * ├─────────────────────────────────────────────────────────────┤
+     * │                                                             │
+     * │  阶段 1: 收集所有 Ability 基本信息                           │
+     * │  ┌─────────────────────────────────────────┐               │
+     * │  │  for (class of scene.getClasses()) {   │               │
+     * │  │      if (isAbilityClass(class)) {      │               │
+     * │  │          buildAbilityInfo(class)       │               │
+     * │  │      }                                  │               │
+     * │  │  }                                      │               │
+     * │  └─────────────────────────────────────────┘               │
+     * │                        │                                    │
+     * │                        ▼                                    │
+     * │  阶段 2: 分析路由关系（需要 Component 信息）                  │
+     * │  ┌─────────────────────────────────────────┐               │
+     * │  │  确保 Component 已收集                   │               │
+     * │  │  for (ability of abilities) {          │               │
+     * │  │      analyzeNavigationTargets(ability) │               │
+     * │  │  }                                      │               │
+     * │  └─────────────────────────────────────────┘               │
+     * │                                                             │
+     * └─────────────────────────────────────────────────────────────┘
+     * ```
+     * 
      * @returns Ability 信息数组
      */
     public collectAllAbilities(): AbilityInfo[] {
         const abilities: AbilityInfo[] = [];
         
-        // 遍历 Scene 中的所有类
+        // 阶段 1: 遍历 Scene 中的所有类，收集 Ability 基本信息
         for (const arkClass of this.scene.getClasses()) {
             if (this.isAbilityClass(arkClass)) {
                 const abilityInfo = this.buildAbilityInfo(arkClass);
@@ -133,7 +165,13 @@ export class AbilityCollector {
             }
         }
         
-        // 第二遍：分析跳转关系（需要在所有 Ability 收集完后进行）
+        // 确保 Component 已收集（路由分析需要 Component 信息来建立关联）
+        if (this.componentCache.size === 0) {
+            console.log('[AbilityCollector] Components not collected yet, collecting now...');
+            this.collectAllComponents();
+        }
+        
+        // 阶段 2: 分析跳转关系（需要在 Ability 和 Component 都收集完后进行）
         for (const ability of abilities) {
             this.analyzeNavigationTargets(ability);
         }
@@ -334,34 +372,81 @@ export class AbilityCollector {
      * 分析 Ability 的跳转目标
      * 
      * 扫描 Ability 中的所有方法，查找 startAbility/router.pushUrl 等调用
+     * 
+     * 工作流程:
+     * ```
+     * ┌─────────────────────────────────────────────────────────────┐
+     * │  Ability 类                                                 │
+     * │      │                                                      │
+     * │      ▼                                                      │
+     * │  NavigationAnalyzer.analyzeClass()                         │
+     * │      │                                                      │
+     * │      ├─→ 遍历所有方法                                       │
+     * │      │      └─→ 遍历所有语句                                │
+     * │      │             └─→ 检查 loadContent/pushUrl/startAbility│
+     * │      │                    └─→ 提取目标页面/Ability           │
+     * │      │                                                      │
+     * │      ▼                                                      │
+     * │  NavigationAnalysisResult                                  │
+     * │      ├─ initialPage: 'pages/Index'                         │
+     * │      └─ navigationTargets: [...]                           │
+     * └─────────────────────────────────────────────────────────────┘
+     * ```
      */
     private analyzeNavigationTargets(ability: AbilityInfo): void {
-        // TODO: 实现跳转分析逻辑
-        // 
-        // 实现思路：
-        // 1. 遍历 Ability 的所有方法
-        // 2. 扫描每条语句，查找 InvokeExpr
-        // 3. 如果调用的是 startAbility / router.pushUrl 等
-        // 4. 尝试解析参数中的目标 Ability 名称
-        // 5. 添加到 navigationTargets 列表
-        //
-        // 示例代码结构：
-        // for (const method of ability.arkClass.getMethods()) {
-        //     const cfg = method.getCfg();
-        //     if (!cfg) continue;
-        //     
-        //     for (const stmt of cfg.getStmts()) {
-        //         const invokeExpr = stmt.getInvokeExpr();
-        //         if (invokeExpr && this.isNavigationCall(invokeExpr)) {
-        //             const target = this.parseNavigationTarget(invokeExpr, method);
-        //             if (target) {
-        //                 ability.navigationTargets.push(target);
-        //             }
-        //         }
-        //     }
-        // }
+        console.log(`[AbilityCollector] Analyzing navigation targets for ${ability.name}`);
         
-        console.log(`[AbilityCollector] TODO: Analyze navigation targets for ${ability.name}`);
+        // 使用 NavigationAnalyzer 分析
+        const analysisResult = this.navigationAnalyzer.analyzeClass(ability.arkClass);
+        
+        // 将分析结果添加到 ability.navigationTargets
+        for (const target of analysisResult.navigationTargets) {
+            ability.navigationTargets.push(target);
+        }
+        
+        // 尝试关联初始页面到 Component
+        if (analysisResult.initialPage) {
+            const component = this.findComponentByPagePath(analysisResult.initialPage);
+            if (component) {
+                ability.components.push(component);
+                console.log(`[AbilityCollector] Linked ${ability.name} -> ${component.name}`);
+            }
+        }
+        
+        // 输出警告信息
+        for (const warning of analysisResult.warnings) {
+            console.warn(`[AbilityCollector] Warning: ${warning}`);
+        }
+        
+        console.log(`[AbilityCollector] Found ${ability.navigationTargets.length} navigation targets for ${ability.name}`);
+    }
+    
+    /**
+     * 根据页面路径查找对应的 ComponentInfo
+     * 
+     * 页面路径格式示例: 'pages/Index', 'pages/Detail'
+     * 需要匹配到已收集的 Component
+     */
+    private findComponentByPagePath(pagePath: string): ComponentInfo | undefined {
+        // 提取页面名称（最后一部分）
+        // 'pages/Index' -> 'Index'
+        const parts = pagePath.split('/');
+        const pageName = parts[parts.length - 1];
+        
+        // 在已收集的 Component 中查找
+        for (const [signature, component] of this.componentCache) {
+            // 匹配组件名
+            if (component.name === pageName) {
+                return component;
+            }
+            // 也尝试匹配完整路径
+            if (component.name === pagePath) {
+                return component;
+            }
+        }
+        
+        console.log(`[AbilityCollector] Component not found for page: ${pagePath}`);
+        return undefined;
     }
 
     /**

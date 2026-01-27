@@ -87,3 +87,4 @@ export {
 export { AbilityCollector } from './AbilityCollector';
 export { ViewTreeCallbackExtractor, extractUICallbacks } from './ViewTreeCallbackExtractor';
 export { LifecycleModelCreator } from './LifecycleModelCreator';
+export { NavigationAnalyzer, analyzeNavigation, NavigationAnalysisResult } from './NavigationAnalyzer';
