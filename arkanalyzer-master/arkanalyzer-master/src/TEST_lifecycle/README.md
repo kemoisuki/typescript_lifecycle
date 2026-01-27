@@ -560,13 +560,13 @@ for (const target of result.navigationTargets) {
 │  │                    直接提取 getValue()   │                   │
 │  └─────────────────────────────────────────┘                   │
 │                                                                 │
-│  情况 2: 变量引用（需要数据流分析 ⚠️）                            │
+│  情况 2: 变量引用（已实现 ✅）                                    │
 │  ┌─────────────────────────────────────────┐                   │
-│  │  let page = 'pages/Detail';              │                   │
-│  │  router.pushUrl({ url: page });          │                   │
-│  │                        ↑                 │                   │
-│  │                  Local 类型              │                   │
-│  │           需要追踪变量定义（TODO）        │                   │
+│  │  let options = { url: 'pages/Detail' };  │                   │
+│  │  router.pushUrl(options);                │                   │
+│  │                    ↑                     │                   │
+│  │              Local 类型                  │                   │
+│  │       追踪变量定义 → 查找字段赋值         │                   │
 │  └─────────────────────────────────────────┘                   │
 │                                                                 │
 │  情况 3: 动态计算（无法静态分析 ❌）                              │
@@ -578,6 +578,478 @@ for (const target of result.navigationTargets) {
 │  └─────────────────────────────────────────┘                   │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+#### 4.3.1 extractRouterUrl() — 路由参数解析（详解）
+
+**功能**：从 `router.pushUrl()` 或 `router.replaceUrl()` 调用中提取目标页面路径。
+
+**为什么需要这个？**
+
+在鸿蒙开发中，页面跳转有多种写法：
+
+```typescript
+// 写法 1: 直接传字符串（最简单）
+router.pushUrl('pages/Detail');
+
+// 写法 2: 传入对象字面量（最常见）
+router.pushUrl({ url: 'pages/Detail' });
+
+// 写法 3: 使用变量（需要追踪）
+let options = { url: 'pages/Detail' };
+router.pushUrl(options);
+
+// 写法 4: 分步骤构建对象
+let options: RouterOptions = {};
+options.url = 'pages/Detail';
+router.pushUrl(options);
+```
+
+**解析流程图**：
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                extractRouterUrl() 完整工作流程                   │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  router.pushUrl(arg)                                            │
+│         │                                                       │
+│         ▼                                                       │
+│  ┌─────────────────────────────────────────┐                   │
+│  │  判断 arg 类型                           │                   │
+│  └─────────────────────────────────────────┘                   │
+│         │                                                       │
+│         ├─────────────────┬─────────────────┐                   │
+│         ▼                 ▼                 ▼                   │
+│  ┌──────────┐      ┌──────────┐      ┌──────────┐              │
+│  │ Constant │      │  Local   │      │  其他    │              │
+│  │ (字符串) │      │ (变量)   │      │          │              │
+│  └────┬─────┘      └────┬─────┘      └────┬─────┘              │
+│       │                 │                 │                    │
+│       ▼                 ▼                 ▼                    │
+│  直接返回值        追踪变量          返回 null                  │
+│                        │                                       │
+│         ┌──────────────┼──────────────┐                        │
+│         ▼              ▼              ▼                        │
+│  ┌────────────┐ ┌────────────┐ ┌────────────┐                 │
+│  │findField   │ │递归追踪    │ │查找初始化  │                 │
+│  │Assignment()│ │(如果右操作 │ │过程中的    │                 │
+│  │            │ │ 数也是变量)│ │字段赋值    │                 │
+│  └──────┬─────┘ └──────┬─────┘ └──────┬─────┘                 │
+│         │              │              │                        │
+│         └──────────────┴──────────────┘                        │
+│                        │                                       │
+│                        ▼                                       │
+│               找到 url 字段的值                                 │
+│                                                                │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**核心步骤解释**：
+
+```
+步骤 1: 类型判断
+────────────────────────────────────────────────────────────────
+  代码: const firstArg = args[0];
+  
+  ┌───────────────────────────────────────────────────────────┐
+  │  ArkAnalyzer 会把代码转成 IR（中间表示）                    │
+  │                                                           │
+  │  router.pushUrl('pages/A')                                │
+  │       ↓                                                   │
+  │  args[0] = Constant { value: 'pages/A', type: String }    │
+  │                                                           │
+  │  router.pushUrl(options)                                  │
+  │       ↓                                                   │
+  │  args[0] = Local { name: 'options' }                      │
+  └───────────────────────────────────────────────────────────┘
+
+步骤 2: 追踪变量定义
+────────────────────────────────────────────────────────────────
+  如果参数是 Local (变量)，需要找到它是在哪里被赋值的：
+  
+  源代码:
+    let options = { url: 'pages/Detail' };  // ← 定义语句
+    router.pushUrl(options);                 // ← 使用位置
+  
+  追踪过程:
+    Local 'options'
+        │
+        ▼ getDeclaringStmt()
+        │
+    ArkAssignStmt { left: options, right: {...} }
+        │
+        ▼ getRightOp()
+        │
+    分析对象的属性
+
+步骤 3: 查找字段赋值
+────────────────────────────────────────────────────────────────
+  ArkAnalyzer 会把对象字面量转成多条赋值语句：
+  
+  源代码:
+    let options = { url: 'pages/Detail', params: {} };
+    
+  IR 表示:
+    $temp1 = new Object()
+    $temp1.url = 'pages/Detail'      ← 找到这条！
+    $temp1.params = {}
+    options = $temp1
+  
+  通过 findFieldAssignment() 遍历找到 url 字段的赋值
+```
+
+**代码示例**：
+
+```typescript
+// NavigationAnalyzer.ts 中的实现
+
+private extractRouterUrl(invokeExpr: AbstractInvokeExpr): string | null {
+    const firstArg = args[0];
+    
+    // 情况 1: 直接是字符串常量
+    if (firstArg instanceof Constant && firstArg.getType() instanceof StringType) {
+        return firstArg.getValue();  // 简单！直接返回
+    }
+
+    // 情况 2: 是变量引用
+    if (firstArg instanceof Local) {
+        return this.extractUrlFromLocalObject(firstArg);  // 需要追踪
+    }
+
+    return null;
+}
+
+private findFieldAssignment(local: Local, fieldName: string): string | null {
+    // 遍历该变量被使用的所有语句
+    for (const stmt of local.getUsedStmts()) {
+        if (stmt instanceof ArkAssignStmt) {
+            const leftOp = stmt.getLeftOp();
+            
+            // 检查是否是 obj.url = 'xxx' 形式
+            if (leftOp instanceof ArkInstanceFieldRef) {
+                if (leftOp.getBase().getName() === local.getName() 
+                    && leftOp.getFieldName() === fieldName) {
+                    // 找到了！返回右边的值
+                    const rightOp = stmt.getRightOp();
+                    if (rightOp instanceof Constant) {
+                        return rightOp.getValue();
+                    }
+                }
+            }
+        }
+    }
+    return null;
+}
+```
+
+---
+
+#### 4.3.2 extractWantTarget() — Want 对象解析（详解）
+
+**功能**：从 `context.startAbility(want)` 调用中提取目标 Ability 名称。
+
+**什么是 Want？**
+
+Want 是鸿蒙中用于跨 Ability 通信的数据结构，类似于 Android 的 Intent：
+
+```typescript
+// Want 对象结构
+let want: Want = {
+    bundleName: 'com.example.app',    // 应用包名
+    abilityName: 'SecondAbility',      // 目标 Ability 名称  ← 我们要提取这个
+    parameters: {                       // 传递的参数
+        key1: 'value1'
+    }
+};
+
+// 启动目标 Ability
+this.context.startAbility(want);
+```
+
+**解析难点**：
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    为什么解析 Want 比较难？                       │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  写法多样：                                                      │
+│                                                                 │
+│  ① 对象字面量                                                   │
+│     this.context.startAbility({                                 │
+│         abilityName: 'SecondAbility'                            │
+│     });                                                         │
+│                                                                 │
+│  ② 变量传递                                                     │
+│     let want = { abilityName: 'SecondAbility' };                │
+│     this.context.startAbility(want);                            │
+│                                                                 │
+│  ③ 分步构建                                                     │
+│     let want: Want = {};                                        │
+│     want.bundleName = 'com.example.app';                        │
+│     want.abilityName = 'SecondAbility';  ← 需要找到这行         │
+│     this.context.startAbility(want);                            │
+│                                                                 │
+│  ④ 动态计算（无法静态分析）                                      │
+│     let abilityName = getAbilityName();  // 运行时才知道        │
+│     this.context.startAbility({ abilityName });                 │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**解析流程图**：
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│              extractWantTarget() 工作流程                        │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  context.startAbility(want)                                     │
+│         │                                                       │
+│         ▼                                                       │
+│  want 参数是什么类型？                                           │
+│         │                                                       │
+│         └──────────────────┐                                    │
+│                            ▼                                    │
+│                     ┌──────────┐                                │
+│                     │  Local   │                                │
+│                     │ (变量)   │                                │
+│                     └────┬─────┘                                │
+│                          │                                      │
+│         ┌────────────────┼────────────────┐                     │
+│         ▼                ▼                ▼                     │
+│  ┌────────────┐   ┌────────────┐   ┌────────────┐              │
+│  │ 方法1:     │   │ 方法2:     │   │ 方法3:     │              │
+│  │ findField  │   │ 从初始化   │   │ 回退方案   │              │
+│  │ Assignment │   │ 过程查找   │   │ (变量名)   │              │
+│  │ ()         │   │            │   │            │              │
+│  └──────┬─────┘   └──────┬─────┘   └──────┬─────┘              │
+│         │                │                │                     │
+│         ▼                ▼                ▼                     │
+│    找到 abilityName 字段的字符串值                               │
+│         │                                                       │
+│         ▼                                                       │
+│    返回 "SecondAbility"                                         │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**实际代码流程**：
+
+```typescript
+// 源代码
+let want: Want = {};
+want.bundleName = 'com.example.app';
+want.abilityName = 'SecondAbility';
+this.context.startAbility(want);
+
+// ArkAnalyzer 转成的 IR（简化）
+//
+// Stmt 1: $temp = new Object()
+// Stmt 2: want = $temp
+// Stmt 3: want.bundleName = 'com.example.app'
+// Stmt 4: want.abilityName = 'SecondAbility'   ← 我们要找这条
+// Stmt 5: $temp2 = this.context
+// Stmt 6: invoke $temp2.startAbility(want)     ← 从这里开始追踪
+
+// 追踪过程：
+//   1. startAbility 的参数是 want (Local)
+//   2. 遍历 want 的 usedStmts
+//   3. 找到 Stmt 4: want.abilityName = 'SecondAbility'
+//   4. 检查 leftOp 是 ArkInstanceFieldRef，fieldName 是 'abilityName'
+//   5. 提取 rightOp 的值: 'SecondAbility'
+```
+
+---
+
+#### 4.3.3 checkIsEntryAbility() — 入口 Ability 识别（详解）
+
+**功能**：判断一个 Ability 是否是应用的入口（启动时第一个运行的 Ability）。
+
+**为什么需要识别入口？**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    DummyMain 需要知道从哪里开始                   │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  一个应用可能有多个 Ability:                                     │
+│                                                                 │
+│    MyApp                                                        │
+│    ├── EntryAbility      ← 入口！用户点击图标时启动这个          │
+│    ├── SettingsAbility                                          │
+│    └── ShareAbility                                             │
+│                                                                 │
+│  DummyMain 必须从入口 Ability 开始模拟：                         │
+│                                                                 │
+│    @extendedDummyMain() {                                       │
+│        // 首先启动入口 Ability                                  │
+│        EntryAbility.onCreate();       ← 入口必须第一个          │
+│        EntryAbility.onWindowStageCreate();                      │
+│        ...                                                      │
+│        // 后续可能跳转到其他 Ability                            │
+│        if (...) SettingsAbility.onCreate();                     │
+│    }                                                            │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**如何确定入口？**
+
+鸿蒙应用的入口配置在 `module.json5` 文件中：
+
+```json5
+// entry/src/main/module.json5
+{
+  "module": {
+    "name": "entry",
+    "type": "entry",
+    "mainElement": "EntryAbility",     // ← 这里指定了入口！
+    "abilities": [
+      {
+        "name": "EntryAbility",
+        "srcEntry": "./ets/entryability/EntryAbility.ets",
+        "exported": true
+      },
+      {
+        "name": "SettingsAbility",
+        "srcEntry": "./ets/settingsability/SettingsAbility.ets"
+      }
+    ]
+  }
+}
+```
+
+**实现流程图**：
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│               checkIsEntryAbility() 完整工作流程                 │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  【初始化阶段 - 构造函数中执行一次】                              │
+│                                                                 │
+│  ┌────────────────────────────────────────────────────────┐    │
+│  │  loadModuleConfigs()                                    │    │
+│  │         │                                               │    │
+│  │         ▼                                               │    │
+│  │  findModuleJsonFiles(projectDir)                        │    │
+│  │         │                                               │    │
+│  │         ▼                                               │    │
+│  │  递归搜索所有 module.json5 文件                          │    │
+│  │  (深度限制 5 层，跳过 node_modules)                      │    │
+│  │         │                                               │    │
+│  │         ▼                                               │    │
+│  │  ┌──────────────────────────────────────────────┐      │    │
+│  │  │  找到的文件列表:                              │      │    │
+│  │  │  - entry/src/main/module.json5               │      │    │
+│  │  │  - feature/src/main/module.json5             │      │    │
+│  │  └──────────────────────────────────────────────┘      │    │
+│  │         │                                               │    │
+│  │         ▼                                               │    │
+│  │  parseModuleJson(filePath)                              │    │
+│  │         │                                               │    │
+│  │         ▼                                               │    │
+│  │  ┌──────────────────────────────────────────────┐      │    │
+│  │  │  解析结果:                                    │      │    │
+│  │  │  {                                            │      │    │
+│  │  │    moduleName: 'entry',                       │      │    │
+│  │  │    mainElement: 'EntryAbility', ← 缓存这个   │      │    │
+│  │  │    abilities: [...]                           │      │    │
+│  │  │  }                                            │      │    │
+│  │  └──────────────────────────────────────────────┘      │    │
+│  │         │                                               │    │
+│  │         ▼                                               │    │
+│  │  entryAbilityNames.add('EntryAbility')                 │    │
+│  │                                                         │    │
+│  └────────────────────────────────────────────────────────┘    │
+│                                                                 │
+│  【判断阶段 - 每次调用】                                         │
+│                                                                 │
+│  ┌────────────────────────────────────────────────────────┐    │
+│  │  checkIsEntryAbility(arkClass)                          │    │
+│  │         │                                               │    │
+│  │         ▼                                               │    │
+│  │  className = arkClass.getName()                         │    │
+│  │         │                                               │    │
+│  │         ▼                                               │    │
+│  │  ┌───────────────────────┐                             │    │
+│  │  │ entryAbilityNames     │                             │    │
+│  │  │ 是否包含 className？   │                             │    │
+│  │  └───────────┬───────────┘                             │    │
+│  │              │                                          │    │
+│  │      ┌───────┴───────┐                                 │    │
+│  │      ▼               ▼                                 │    │
+│  │   ┌─────┐         ┌─────┐                              │    │
+│  │   │ 是  │         │ 否  │                              │    │
+│  │   └──┬──┘         └──┬──┘                              │    │
+│  │      │               │                                 │    │
+│  │      ▼               ▼                                 │    │
+│  │  return true    如果未加载配置:                         │    │
+│  │                 用启发式方法                             │    │
+│  │                 (名称包含 Entry/Main)                   │    │
+│  │                                                         │    │
+│  └────────────────────────────────────────────────────────┘    │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**JSON5 解析细节**：
+
+```typescript
+// module.json5 可能包含注释，需要处理
+{
+  "module": {
+    "name": "entry",
+    // 这是入口 Ability
+    "mainElement": "EntryAbility",  /* 主入口 */
+    "abilities": [...]
+  }
+}
+
+// 解析代码
+private parseModuleJson(filePath: string): ModuleConfig | null {
+    const content = fs.readFileSync(filePath, 'utf-8');
+    
+    // 移除 JSON5 注释
+    const jsonContent = content
+        .replace(/\/\/.*$/gm, '')        // 移除 // 注释
+        .replace(/\/\*[\s\S]*?\*\//g, ''); // 移除 /* */ 注释
+    
+    const parsed = JSON.parse(jsonContent);
+    
+    return {
+        moduleName: parsed.module.name,
+        mainElement: parsed.module.mainElement,  // ← 提取入口
+        abilities: parsed.module.abilities || []
+    };
+}
+```
+
+**使用示例**：
+
+```typescript
+const collector = new AbilityCollector(scene);
+
+// 自动在构造函数中加载配置
+// 输出: [AbilityCollector] Found entry ability: EntryAbility in .../module.json5
+// 输出: [AbilityCollector] Loaded 2 module configs, 1 entry abilities
+
+const abilities = collector.collectAllAbilities();
+
+for (const ability of abilities) {
+    if (ability.isEntry) {
+        console.log(`入口 Ability: ${ability.name}`);
+        // 输出: 入口 Ability: EntryAbility
+    }
+}
+
+// 也可以直接获取入口名称列表
+const entryNames = collector.getEntryAbilityNames();
+// Set { 'EntryAbility' }
 ```
 
 ---
