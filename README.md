@@ -20,8 +20,9 @@ typescript/
 │           ├── callgraph/              # 调用图
 │           └── TEST_lifecycle/         # ⭐ 新增：生命周期建模扩展
 │               ├── README.md           # 详细文档
-│               ├── LifecycleTypes.ts
-│               ├── AbilityCollector.ts
+│               ├── LifecycleTypes.ts   # 类型定义
+│               ├── AbilityCollector.ts # Ability/Component 收集
+│               ├── NavigationAnalyzer.ts # 🆕 路由分析器
 │               ├── ViewTreeCallbackExtractor.ts
 │               ├── LifecycleModelCreator.ts
 │               └── index.ts
@@ -39,7 +40,7 @@ typescript/
 | 功能 | 原版 | 扩展版 |
 |------|:----:|:------:|
 | 多 Ability 支持 | ❌ | ✅ |
-| 页面跳转建模 | ❌ | 🚧 |
+| 页面跳转建模 | ❌ | ✅ 基础实现 |
 | 精细化 UI 回调 | ❌ | ✅ |
 | ViewTree 整合 | ❌ | ✅ |
 | 可配置性 | ❌ | ✅ |
@@ -81,6 +82,7 @@ const cfg = dummyMain.getCfg();
 |------|------|
 | `LifecycleTypes.ts` | 类型定义（Ability/Component 信息结构） |
 | `AbilityCollector.ts` | 收集所有 Ability 和 Component |
+| `NavigationAnalyzer.ts` | 🆕 路由分析（loadContent/pushUrl/startAbility） |
 | `ViewTreeCallbackExtractor.ts` | 从 ViewTree 提取 UI 回调 |
 | `LifecycleModelCreator.ts` | 核心构建器，生成 DummyMain |
 | `index.ts` | 模块入口 |
@@ -91,11 +93,12 @@ const cfg = dummyMain.getCfg();
 flowchart LR
     A[Scene] --> B[收集 Ability]
     A --> C[收集 Component]
-    C --> D[提取 ViewTree 回调]
-    B --> E[构建 DummyMain CFG]
-    C --> E
-    D --> E
-    E --> F["@extendedDummyMain"]
+    B --> D[分析路由关系]
+    C --> D
+    C --> E[提取 ViewTree 回调]
+    D --> F[构建 DummyMain CFG]
+    E --> F
+    F --> G["@extendedDummyMain"]
 ```
 
 ---
@@ -118,7 +121,12 @@ flowchart LR
 
 ## 🔧 TODO
 
-- [ ] 实现 `analyzeNavigationTargets()` - 页面跳转分析
+### 已完成 ✅
+- [x] 实现 `NavigationAnalyzer` - 路由分析器（支持 loadContent/pushUrl/replaceUrl/startAbility）
+- [x] 实现 `analyzeNavigationTargets()` - 页面跳转分析
+
+### 待完成
+- [ ] 完善路由参数解析 - 支持变量和对象参数
 - [ ] 实现 `checkIsEntryAbility()` - 从 module.json5 读取入口配置
 - [ ] 完善 `resolveCallbackMethod()` - 处理匿名函数
 - [ ] 实现 `addMethodInvocation()` - 生成方法参数
@@ -137,6 +145,7 @@ flowchart LR
 
 | 日期 | 版本 | 说明 |
 |------|------|------|
+| 2025-01-27 | v0.2.0 | 新增 NavigationAnalyzer 路由分析器 |
 | 2025-01-17 | v0.1.0 | 初始框架完成，包含基本结构和文档 |
 
 ---
