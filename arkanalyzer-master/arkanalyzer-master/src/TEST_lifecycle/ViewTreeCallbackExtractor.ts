@@ -252,6 +252,32 @@ export class ViewTreeCallbackExtractor {
      * 
      * 从 attribute 的值中解析出实际的回调方法
      * 
+     * 支持的回调形式：
+     * ```
+     * ┌─────────────────────────────────────────────────────────────────┐
+     * │                    回调方法解析流程                              │
+     * ├─────────────────────────────────────────────────────────────────┤
+     * │                                                                 │
+     * │  Button('Click').onClick(???)                                   │
+     * │                          │                                      │
+     * │      ┌───────────────────┼───────────────────┐                  │
+     * │      ▼                   ▼                   ▼                  │
+     * │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐             │
+     * │  │MethodSig    │  │FieldRef    │  │ Constant    │             │
+     * │  │(方法签名)    │  │(this.xxx)  │  │('方法名')   │             │
+     * │  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘             │
+     * │         │                │                │                     │
+     * │         ▼                ▼                ▼                     │
+     * │  scene.getMethod  class.getMethod  class.getMethodWithName     │
+     * │         │                │                │                     │
+     * │         └────────────────┴────────────────┘                     │
+     * │                          │                                      │
+     * │                          ▼                                      │
+     * │                    ArkMethod (回调方法)                          │
+     * │                                                                 │
+     * └─────────────────────────────────────────────────────────────────┘
+     * ```
+     * 
      * @param attributeValue [Stmt, 关联值数组]
      * @param componentClass 所属 Component 类
      * @returns 回调方法（如果能解析到）
@@ -260,23 +286,247 @@ export class ViewTreeCallbackExtractor {
         attributeValue: [any, (Constant | ArkInstanceFieldRef | MethodSignature)[]],
         componentClass: ArkClass
     ): ArkMethod | null {
-        // TODO: 实现完整的回调解析逻辑
-        //
-        // 实现思路：
-        // 1. attributeValue[1] 包含关联值，可能是 MethodSignature 或 FunctionType
-        // 2. 如果是 MethodSignature，直接从 Scene 获取方法
-        // 3. 如果是匿名函数，需要从 Stmt 中解析
-        //
-        // 示例伪代码：
-        // const [stmt, relatedValues] = attributeValue;
-        // for (const value of relatedValues) {
-        //     if (value instanceof MethodSignature) {
-        //         const method = this.scene.getMethod(value);
-        //         if (method) return method;
-        //     }
-        // }
-        
         const [stmt, relatedValues] = attributeValue;
+        
+        // 遍历所有关联值，尝试解析出回调方法
+        for (const value of relatedValues) {
+            const method = this.resolveFromSingleValue(value, componentClass);
+            if (method) {
+                console.log(`[ViewTreeCallbackExtractor] Resolved callback: ${method.getName()}`);
+                return method;
+            }
+        }
+        
+        // 如果关联值中没有找到，尝试从语句中解析（Lambda 情况）
+        const lambdaMethod = this.resolveLambdaFromStmt(stmt, componentClass);
+        if (lambdaMethod) {
+            console.log(`[ViewTreeCallbackExtractor] Resolved lambda callback: ${lambdaMethod.getName()}`);
+            return lambdaMethod;
+        }
+        
+        console.log(`[ViewTreeCallbackExtractor] Failed to resolve callback from ${relatedValues.length} values`);
+        return null;
+    }
+    
+    /**
+     * 从单个值解析回调方法
+     * 
+     * @param value 关联值（MethodSignature | ArkInstanceFieldRef | Constant）
+     * @param componentClass 所属 Component 类
+     * @returns 解析到的方法
+     */
+    private resolveFromSingleValue(
+        value: MethodSignature | ArkInstanceFieldRef | Constant,
+        componentClass: ArkClass
+    ): ArkMethod | null {
+        // 情况 1: 直接是方法签名
+        // 代码形式: Button().onClick(this.handleClick)
+        // ArkAnalyzer 可能将 this.handleClick 解析为 MethodSignature
+        if (value instanceof MethodSignature) {
+            return this.resolveFromMethodSignature(value, componentClass);
+        }
+        
+        // 情况 2: 实例字段引用
+        // 代码形式: Button().onClick(this.handleClick)
+        // 其中 this.handleClick 可能被表示为 ArkInstanceFieldRef
+        if (value instanceof ArkInstanceFieldRef) {
+            return this.resolveFromFieldRef(value, componentClass);
+        }
+        
+        // 情况 3: 字符串常量（方法名）
+        // 代码形式: Button().onClick('handleClick')（较少见）
+        if (value instanceof Constant) {
+            return this.resolveFromConstant(value, componentClass);
+        }
+        
+        return null;
+    }
+    
+    /**
+     * 从方法签名解析回调方法
+     * 
+     * 处理形式: onClick(this.handleClick) 其中 handleClick 已解析为 MethodSignature
+     */
+    private resolveFromMethodSignature(
+        sig: MethodSignature,
+        componentClass: ArkClass
+    ): ArkMethod | null {
+        // 方法 1: 从 Scene 全局查找
+        const methodFromScene = this.scene.getMethod(sig);
+        if (methodFromScene) {
+            return methodFromScene;
+        }
+        
+        // 方法 2: 从当前类中按签名查找
+        const methodFromClass = componentClass.getMethod(sig);
+        if (methodFromClass) {
+            return methodFromClass;
+        }
+        
+        // 方法 3: 从当前类中按名称查找（签名匹配失败时的后备方案）
+        const methodName = sig.getMethodSubSignature().getMethodName();
+        const methodByName = componentClass.getMethodWithName(methodName);
+        if (methodByName) {
+            return methodByName;
+        }
+        
+        // 方法 4: 检查父类
+        const superClass = this.getSuperClass(componentClass);
+        if (superClass) {
+            const methodFromSuper = superClass.getMethodWithName(methodName);
+            if (methodFromSuper) {
+                return methodFromSuper;
+            }
+        }
+        
+        return null;
+    }
+    
+    /**
+     * 从字段引用解析回调方法
+     * 
+     * 处理形式: onClick(this.handleClick) 其中 this.handleClick 是 ArkInstanceFieldRef
+     */
+    private resolveFromFieldRef(
+        fieldRef: ArkInstanceFieldRef,
+        componentClass: ArkClass
+    ): ArkMethod | null {
+        const fieldName = fieldRef.getFieldName();
+        
+        // 尝试将字段名作为方法名查找
+        // 因为 this.handleClick 中的 handleClick 可能是方法名
+        const method = componentClass.getMethodWithName(fieldName);
+        if (method) {
+            return method;
+        }
+        
+        // 检查父类
+        const superClass = this.getSuperClass(componentClass);
+        if (superClass) {
+            const methodFromSuper = superClass.getMethodWithName(fieldName);
+            if (methodFromSuper) {
+                return methodFromSuper;
+            }
+        }
+        
+        // 如果找不到方法，可能是真正的字段（存储了函数引用）
+        // 这种情况较复杂，暂时不处理
+        console.log(`[ViewTreeCallbackExtractor] Field ref '${fieldName}' is not a method`);
+        return null;
+    }
+    
+    /**
+     * 从常量解析回调方法
+     * 
+     * 处理形式: onClick('handleClick')（字符串形式的方法名）
+     */
+    private resolveFromConstant(
+        constant: Constant,
+        componentClass: ArkClass
+    ): ArkMethod | null {
+        const value = constant.getValue();
+        
+        // 检查是否是字符串类型
+        if (typeof value !== 'string') {
+            return null;
+        }
+        
+        // 将字符串作为方法名查找
+        const method = componentClass.getMethodWithName(value);
+        if (method) {
+            return method;
+        }
+        
+        // 检查父类
+        const superClass = this.getSuperClass(componentClass);
+        if (superClass) {
+            return superClass.getMethodWithName(value);
+        }
+        
+        return null;
+    }
+    
+    /**
+     * 从语句中解析 Lambda 表达式
+     * 
+     * 处理形式:
+     * ```typescript
+     * Button().onClick(() => {
+     *     this.count++;
+     * })
+     * ```
+     * 
+     * Lambda 表达式可能被 ArkAnalyzer 转换为匿名方法或内联代码
+     */
+    private resolveLambdaFromStmt(
+        stmt: any,
+        componentClass: ArkClass
+    ): ArkMethod | null {
+        // Lambda 的处理比较复杂，ArkAnalyzer 可能：
+        // 1. 为 Lambda 生成一个匿名方法（如 lambda$onClick$1）
+        // 2. 将 Lambda 内联到调用点
+        
+        // 查找可能的匿名/Lambda 方法
+        // ArkAnalyzer 通常会给 Lambda 生成特殊名称
+        for (const method of componentClass.getMethods()) {
+            const methodName = method.getName();
+            
+            // 检查是否是生成的 Lambda 方法
+            // 常见的 Lambda 方法命名模式
+            if (methodName.includes('lambda') || 
+                methodName.includes('anonymous') ||
+                methodName.startsWith('$')) {
+                
+                // TODO: 需要进一步验证这个 Lambda 是否与当前 stmt 关联
+                // 暂时不返回 Lambda 方法，因为无法确定关联性
+            }
+        }
+        
+        // 当前简化处理：不解析 Lambda
+        // 完整实现需要分析 stmt 的结构来确定 Lambda 定义
+        return null;
+    }
+    
+    /**
+     * 获取父类
+     */
+    private getSuperClass(arkClass: ArkClass): ArkClass | null {
+        const superClassName = arkClass.getSuperClassName();
+        if (!superClassName || superClassName === 'Object') {
+            return null;
+        }
+        
+        // 从 Scene 中查找父类
+        for (const cls of this.scene.getClasses()) {
+            if (cls.getName() === superClassName) {
+                return cls;
+            }
+        }
+        
+        return null;
+    }
+    
+    // ========================================================================
+    // 辅助方法（保留原有的）
+    // ========================================================================
+    
+    /**
+     * 收集关联的状态变量
+     * 
+     * @param node ViewTree 节点
+     * @param attributeValue 属性值
+     * @returns 状态变量数组
+     */
+    private collectRelatedStateValues(
+        node: ViewTreeNode,
+        attributeValue: [any, (Constant | ArkInstanceFieldRef | MethodSignature)[]]
+    ): ArkField[] {
+        // 从节点的 stateValues 中收集
+        const stateValues: ArkField[] = [];
+        node.stateValues.forEach(field => stateValues.push(field));
+        return stateValues;
+    }
+}
         
         for (const value of relatedValues) {
             if (value instanceof MethodSignature) {

@@ -1144,6 +1144,244 @@ class ViewTreeCallbackExtractor {
 }
 ```
 
+---
+
+#### 4.5.1 resolveCallbackMethod() — 回调方法解析（详解）
+
+**功能**：从 ViewTree 节点的属性值中解析出实际的回调方法（ArkMethod）。
+
+**为什么这个方法重要？**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│               回调解析在整个流程中的位置                          │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  源代码                                                         │
+│  ─────────                                                      │
+│  Button('Click').onClick(this.handleClick)                      │
+│                                                                 │
+│         ↓ ArkAnalyzer 解析                                      │
+│                                                                 │
+│  ViewTree 节点                                                  │
+│  ─────────────                                                  │
+│  {                                                              │
+│    name: 'Button',                                              │
+│    attributes: Map {                                            │
+│      'onClick' => [Stmt, [MethodSignature/FieldRef/...]]       │
+│    }                   ↑                                        │
+│  }                     │                                        │
+│                        │ resolveCallbackMethod() 的输入         │
+│                        │                                        │
+│         ↓              │                                        │
+│                        │                                        │
+│  我们需要的                                                      │
+│  ─────────                                                      │
+│  ArkMethod { name: 'handleClick', body: {...} }                 │
+│                                                                 │
+│         ↓ 用于 DummyMain                                        │
+│                                                                 │
+│  DummyMain CFG 中调用:                                          │
+│  ─────────────────────                                          │
+│  component.handleClick()  ← 静态分析可以触达这里的代码！        │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**开发者写回调的多种方式**：
+
+```typescript
+// 方式 1: 方法引用（最常见）
+@Component
+struct MyComponent {
+    handleClick() {
+        console.log('clicked');
+    }
+    
+    build() {
+        Button('Click')
+            .onClick(this.handleClick)  // ← 需要解析
+    }
+}
+
+// 方式 2: 箭头函数 Lambda
+Button('Click')
+    .onClick(() => {                    // ← 需要解析
+        this.count++;
+    })
+
+// 方式 3: 内联函数
+Button('Click')
+    .onClick(function() {               // ← 需要解析
+        doSomething();
+    })
+```
+
+**解析流程图**：
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│             resolveCallbackMethod() 完整工作流程                 │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  输入: attributeValue = [Stmt, Values[]]                        │
+│                              │                                  │
+│                              ▼                                  │
+│                     遍历 Values 数组                            │
+│                              │                                  │
+│        ┌─────────────────────┼─────────────────────┐            │
+│        ▼                     ▼                     ▼            │
+│  ┌───────────────┐   ┌───────────────┐   ┌───────────────┐     │
+│  │ MethodSignature│   │ArkInstanceFld│   │   Constant    │     │
+│  │  (方法签名)    │   │  Ref (字段)  │   │ (字符串常量)  │     │
+│  └───────┬───────┘   └───────┬───────┘   └───────┬───────┘     │
+│          │                   │                   │              │
+│          ▼                   ▼                   ▼              │
+│  ┌───────────────┐   ┌───────────────┐   ┌───────────────┐     │
+│  │1.scene.getMethod│ │1.getFieldName()│   │1.getValue()   │     │
+│  │2.class.getMethod│ │2.作为方法名查找│   │2.作为方法名   │     │
+│  │3.按名称查找    │ │3.检查父类      │   │  查找        │     │
+│  │4.检查父类      │ │               │   │3.检查父类     │     │
+│  └───────┬───────┘   └───────┬───────┘   └───────┬───────┘     │
+│          │                   │                   │              │
+│          └───────────────────┴───────────────────┘              │
+│                              │                                  │
+│                              ▼                                  │
+│                    找到 ArkMethod?                              │
+│                     /          \                                │
+│                   是            否                              │
+│                   │              │                              │
+│                   ▼              ▼                              │
+│              返回方法      尝试 Lambda 解析                      │
+│                              │                                  │
+│                              ▼                                  │
+│                    resolveLambdaFromStmt()                      │
+│                    (检查是否有匿名方法)                          │
+│                              │                                  │
+│                              ▼                                  │
+│                      返回结果或 null                            │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**ArkAnalyzer 如何表示回调？**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│            ViewTree 属性的数据结构                               │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  node.attributes 是 Map<string, [Stmt, Value[]]>               │
+│                                                                 │
+│  例如：onClick(this.handleClick) 被解析为:                      │
+│                                                                 │
+│  'onClick' => [                                                 │
+│      ArkInvokeStmt,           // 关联的语句                     │
+│      [                                                          │
+│          MethodSignature {    // 方法签名                       │
+│              className: 'MyComponent',                          │
+│              methodName: 'handleClick',                         │
+│              ...                                                │
+│          }                                                      │
+│      ]                                                          │
+│  ]                                                              │
+│                                                                 │
+│  或者 onClick(this.handler) 可能被解析为:                       │
+│                                                                 │
+│  'onClick' => [                                                 │
+│      ArkInvokeStmt,                                             │
+│      [                                                          │
+│          ArkInstanceFieldRef {  // 字段引用                     │
+│              base: Local('this'),                               │
+│              fieldName: 'handler'                               │
+│          }                                                      │
+│      ]                                                          │
+│  ]                                                              │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**核心解析代码示例**：
+
+```typescript
+private resolveCallbackMethod(
+    attributeValue: [Stmt, Value[]],
+    componentClass: ArkClass
+): ArkMethod | null {
+    const [stmt, values] = attributeValue;
+    
+    for (const value of values) {
+        // 情况 1: 方法签名
+        if (value instanceof MethodSignature) {
+            // 优先从 Scene 全局查找
+            let method = this.scene.getMethod(value);
+            if (method) return method;
+            
+            // 其次从当前类查找
+            method = componentClass.getMethod(value);
+            if (method) return method;
+            
+            // 最后按名称查找
+            const name = value.getMethodSubSignature().getMethodName();
+            method = componentClass.getMethodWithName(name);
+            if (method) return method;
+        }
+        
+        // 情况 2: 字段引用 (this.xxx)
+        if (value instanceof ArkInstanceFieldRef) {
+            const fieldName = value.getFieldName();
+            // 将字段名作为方法名查找
+            const method = componentClass.getMethodWithName(fieldName);
+            if (method) return method;
+        }
+        
+        // 情况 3: 字符串常量
+        if (value instanceof Constant && typeof value.getValue() === 'string') {
+            const method = componentClass.getMethodWithName(value.getValue());
+            if (method) return method;
+        }
+    }
+    
+    return null;
+}
+```
+
+**Lambda 表达式的处理**：
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│              Lambda 表达式的特殊处理                             │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  源代码:                                                        │
+│  Button().onClick(() => { this.count++; })                      │
+│                                                                 │
+│  ArkAnalyzer 可能的处理方式:                                     │
+│                                                                 │
+│  方式 1: 生成匿名方法                                           │
+│  ─────────────────────                                          │
+│  class MyComponent {                                            │
+│      // 原有方法                                                │
+│      build() { ... }                                            │
+│                                                                 │
+│      // ArkAnalyzer 生成的 Lambda 方法                          │
+│      lambda$onClick$1() {                                       │
+│          this.count++;                                          │
+│      }                                                          │
+│  }                                                              │
+│                                                                 │
+│  方式 2: 内联到调用点                                           │
+│  ─────────────────────                                          │
+│  ViewTree 的 Stmt 中直接包含 Lambda 的代码                       │
+│                                                                 │
+│  当前实现:                                                       │
+│  ─────────                                                      │
+│  - 方式 1 的 Lambda 方法可以通过方法名模式匹配找到               │
+│  - 方式 2 需要分析 Stmt 结构（复杂，暂未完全实现）              │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
 #### ViewTree 遍历示意
 
 ```
@@ -1644,14 +1882,15 @@ for (const component of components) {
 | `NavigationAnalyzer.extractRouterUrl()` | 对象参数解析 | ✅ 完成 | 支持追踪变量定义和字段赋值 |
 | `NavigationAnalyzer.extractWantTarget()` | Want 对象解析 | ✅ 完成 | 解析 abilityName 字段 |
 | `AbilityCollector.checkIsEntryAbility()` | 入口识别 | ✅ 完成 | 读取 module.json5 的 mainElement |
+| `ViewTreeCallbackExtractor.resolveCallbackMethod()` | 回调方法解析 | ✅ 完成 | 支持 MethodSignature/FieldRef/Constant |
 
 ### 8.2 待实现功能
 
 | 位置 | 功能 | 优先级 | 说明 |
 |------|------|--------|------|
-| `ViewTreeCallbackExtractor.resolveCallbackMethod()` | 匿名函数解析 | 中 | 处理 lambda 表达式 |
 | `LifecycleModelCreator.addMethodInvocation()` | 参数生成 | 中 | 生成 Want, WindowStage 等参数 |
 | `LifecycleModelCreator.addUICallbackInvocation()` | 控件实例化 | 低 | 为每个控件创建实例 |
+| `resolveCallbackMethod()` Lambda 增强 | Lambda 完整支持 | 低 | 完整解析内联 Lambda 表达式 |
 | 路由参数数据流分析 | 复杂参数解析 | 低 | 处理动态计算的路由参数 |
 
 ### 8.3 扩展建议
@@ -1751,6 +1990,7 @@ solver.solve();
 | 0.1.0 | 2025-01-17 | 初始框架，基本结构完成 |
 | 0.2.0 | 2025-01-27 | 新增 NavigationAnalyzer 路由分析器 |
 | 0.3.0 | 2025-01-27 | 完善路由参数解析和 module.json5 入口识别 |
+| 0.4.0 | 2025-01-27 | 实现 resolveCallbackMethod() 回调方法解析 |
 
 ---
 

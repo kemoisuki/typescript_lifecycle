@@ -99,6 +99,9 @@ const cfg = dummyMain.getCfg();
 ├─────────────────────────────────────────────────────────────┤
 │ ③ 入口识别 (checkIsEntryAbility)                            │
 │    读取 module.json5 → 解析 mainElement → 确定入口 Ability  │
+├─────────────────────────────────────────────────────────────┤
+│ ④ 回调方法解析 (resolveCallbackMethod)                      │
+│    onClick(handler) → 解析 MethodSig/FieldRef → ArkMethod  │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -142,9 +145,9 @@ flowchart LR
 - [x] 完善 `extractRouterUrl()` - 支持追踪变量定义和对象参数解析
 - [x] 完善 `extractWantTarget()` - 解析 Want 对象获取目标 Ability
 - [x] 实现 `checkIsEntryAbility()` - 从 module.json5 读取入口配置
+- [x] 实现 `resolveCallbackMethod()` - 回调方法解析（支持 MethodSignature/FieldRef/Constant）
 
 ### 待完成
-- [ ] 完善 `resolveCallbackMethod()` - 处理匿名函数
 - [ ] 实现 `addMethodInvocation()` - 生成方法参数
 - [ ] 实现 `addUICallbackInvocation()` - 控件实例化
 
@@ -161,6 +164,7 @@ flowchart LR
 
 | 日期 | 版本 | 说明 |
 |------|------|------|
+| 2025-01-27 | v0.4.0 | 实现 resolveCallbackMethod() 回调方法解析 |
 | 2025-01-27 | v0.3.0 | 完善路由参数解析和 module.json5 入口识别 |
 | 2025-01-27 | v0.2.0 | 新增 NavigationAnalyzer 路由分析器 |
 | 2025-01-17 | v0.1.0 | 初始框架完成，包含基本结构和文档 |
