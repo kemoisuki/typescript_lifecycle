@@ -638,18 +638,172 @@ export class LifecycleModelCreator {
     }
 
     /**
-     * 添加方法调用语句
+     * 添加方法调用语句（含参数生成）
+     * 
+     * 工作流程：
+     * ```
+     * ┌─────────────────────────────────────────────────────────────────┐
+     * │                addMethodInvocation() 流程                       │
+     * ├─────────────────────────────────────────────────────────────────┤
+     * │                                                                 │
+     * │  输入: method (如 onCreate)                                     │
+     * │         │                                                       │
+     * │         ▼                                                       │
+     * │  获取参数列表: method.getParameters()                           │
+     * │         │                                                       │
+     * │         ▼                                                       │
+     * │  为每个参数创建 Local 和初始化语句:                             │
+     * │  ┌─────────────────────────────────────────────┐               │
+     * │  │  %temp0 = new Want()         // ClassType   │               │
+     * │  │  %temp1 = new LaunchParam()  // ClassType   │               │
+     * │  └─────────────────────────────────────────────┘               │
+     * │         │                                                       │
+     * │         ▼                                                       │
+     * │  生成调用语句:                                                   │
+     * │  ┌─────────────────────────────────────────────┐               │
+     * │  │  ability.onCreate(%temp0, %temp1)           │               │
+     * │  └─────────────────────────────────────────────┘               │
+     * │                                                                 │
+     * └─────────────────────────────────────────────────────────────────┘
+     * ```
      */
     private addMethodInvocation(
         block: BasicBlock,
         instanceLocal: Local,
         method: ArkMethod
     ): void {
-        // TODO: 处理方法参数
-        // 当前简化：不传递参数
+        // Step 1: 为方法参数创建 Local 变量并初始化
+        const paramLocals = this.createParameterLocals(method, block);
+        
+        // Step 2: 生成方法调用语句
         const invokeExpr = new ArkInstanceInvokeExpr(
             instanceLocal,
             method.getSignature(),
+            paramLocals
+        );
+        const invokeStmt = new ArkInvokeStmt(invokeExpr);
+        block.addStmt(invokeStmt);
+        
+        // 打印调试信息
+        if (paramLocals.length > 0) {
+            console.log(`[LifecycleModelCreator] ${method.getName()}(${paramLocals.map(l => l.getName()).join(', ')})`);
+        }
+    }
+    
+    /**
+     * 为方法参数创建 Local 变量并生成初始化语句
+     * 
+     * 处理逻辑：
+     * - ClassType 参数：创建 new Xxx() 语句
+     * - 基本类型参数：创建默认值常量
+     * - 未知类型参数：跳过（不传递）
+     * 
+     * @param method 目标方法
+     * @param block 添加语句的基本块
+     * @returns 参数 Local 数组
+     */
+    private createParameterLocals(method: ArkMethod, block: BasicBlock): Local[] {
+        const paramLocals: Local[] = [];
+        const parameters = method.getParameters();
+        
+        // 如果方法没有参数，直接返回空数组
+        if (parameters.length === 0) {
+            return paramLocals;
+        }
+        
+        for (let i = 0; i < parameters.length; i++) {
+            const param = parameters[i];
+            let paramType = param.getType();
+            
+            // 如果参数类型未知，尝试从父类方法获取
+            if (!paramType) {
+                paramType = this.getParamTypeFromSuperClass(method, i);
+            }
+            
+            // 如果仍然无法获取类型，跳过该参数
+            if (!paramType) {
+                console.log(`[LifecycleModelCreator] Skipping param ${i} of ${method.getName()}: unknown type`);
+                continue;
+            }
+            
+            // 创建参数 Local 变量
+            const paramLocal = new Local(
+                `%param${this.tempLocalIndex++}`,
+                paramType
+            );
+            
+            // 如果是 ClassType，生成 new 语句
+            if (paramType instanceof ClassType) {
+                const newExpr = new ArkNewExpr(paramType);
+                const assignStmt = new ArkAssignStmt(paramLocal, newExpr);
+                paramLocal.setDeclaringStmt(assignStmt);
+                block.addStmt(assignStmt);
+                
+                // 尝试调用构造函数
+                this.tryInvokeConstructor(block, paramLocal, paramType);
+            }
+            
+            paramLocals.push(paramLocal);
+        }
+        
+        return paramLocals;
+    }
+    
+    /**
+     * 从父类方法获取参数类型
+     * 
+     * 当子类方法的参数类型未知时（常见于 SDK 继承场景），
+     * 尝试从父类的同名方法获取参数类型
+     */
+    private getParamTypeFromSuperClass(method: ArkMethod, paramIndex: number): any {
+        const declaringClass = method.getDeclaringArkClass();
+        const superClass = declaringClass.getSuperClass();
+        
+        if (!superClass) {
+            return null;
+        }
+        
+        // 在父类中查找同名方法
+        const superMethod = superClass.getMethodWithName(method.getName());
+        if (!superMethod) {
+            return null;
+        }
+        
+        const superParams = superMethod.getParameters();
+        if (paramIndex < superParams.length) {
+            return superParams[paramIndex].getType();
+        }
+        
+        return null;
+    }
+    
+    /**
+     * 尝试调用对象的构造函数
+     * 
+     * 对于 new Xxx() 创建的对象，如果有构造函数，
+     * 生成对应的构造函数调用语句
+     */
+    private tryInvokeConstructor(
+        block: BasicBlock,
+        local: Local,
+        classType: ClassType
+    ): void {
+        // 从 Scene 获取类
+        const arkClass = this.scene.getClass(classType.getClassSignature());
+        if (!arkClass) {
+            return;
+        }
+        
+        // 查找构造函数
+        const constructor = arkClass.getMethodWithName(CONSTRUCTOR_NAME);
+        if (!constructor) {
+            return;
+        }
+        
+        // 生成构造函数调用（无参数版本）
+        const invokeExpr = new ArkInstanceInvokeExpr(
+            local,
+            constructor.getSignature(),
             []
         );
         const invokeStmt = new ArkInvokeStmt(invokeExpr);

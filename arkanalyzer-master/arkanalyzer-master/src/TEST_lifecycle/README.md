@@ -1553,6 +1553,231 @@ class LifecycleModelCreator {
 
 ---
 
+#### 4.6.1 addMethodInvocation() — 方法调用与参数生成（详解）
+
+**功能**：生成生命周期方法的调用语句，并自动为方法参数创建对应的对象。
+
+**为什么需要参数生成？**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    为什么参数生成很重要？                         │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  鸿蒙 Ability 的生命周期方法需要参数：                           │
+│                                                                 │
+│  class EntryAbility extends UIAbility {                         │
+│      onCreate(want: Want, launchParam: LaunchParam) {           │
+│          //     ↑            ↑                                  │
+│          //     │            └── 启动参数                       │
+│          //     └── 包含外部传入的数据（可能是敏感数据！）       │
+│                                                                 │
+│          let data = want.parameters['key'];  // 污点源！        │
+│          sendToServer(data);                 // 如果追踪不到这里│
+│      }                                       // 就发现不了泄露  │
+│  }                                                              │
+│                                                                 │
+│  ───────────────────────────────────────────────────────────── │
+│                                                                 │
+│  没有参数生成时：                                                │
+│  ┌─────────────────────────────────────────┐                   │
+│  │  DummyMain:                              │                   │
+│  │  ability.onCreate()  ← 没有 want 参数！  │                   │
+│  │                                          │                   │
+│  │  静态分析结果：                           │                   │
+│  │  无法追踪 want 中的数据流 ❌              │                   │
+│  └─────────────────────────────────────────┘                   │
+│                                                                 │
+│  有参数生成时：                                                  │
+│  ┌─────────────────────────────────────────┐                   │
+│  │  DummyMain:                              │                   │
+│  │  %param0 = new Want()                    │                   │
+│  │  %param1 = new LaunchParam()             │                   │
+│  │  ability.onCreate(%param0, %param1)      │                   │
+│  │                                          │                   │
+│  │  静态分析结果：                           │                   │
+│  │  可以追踪 want → parameters → sendToServer ✅ │              │
+│  └─────────────────────────────────────────┘                   │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**需要生成参数的生命周期方法**：
+
+| 方法 | 参数 | 重要性 |
+|------|------|:------:|
+| `onCreate(want, launchParam)` | Want, LaunchParam | ⭐⭐⭐⭐⭐ |
+| `onWindowStageCreate(windowStage)` | WindowStage | ⭐⭐⭐⭐ |
+| `onForeground()` | 无 | - |
+| `onBackground()` | 无 | - |
+| `onDestroy()` | 无 | - |
+
+**实现流程图**：
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│             addMethodInvocation() 完整工作流程                   │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  输入: method (如 onCreate), instanceLocal (ability 实例)       │
+│         │                                                       │
+│         ▼                                                       │
+│  ┌─────────────────────────────────────────────────────┐       │
+│  │  Step 1: 获取方法参数列表                            │       │
+│  │  parameters = method.getParameters()                 │       │
+│  │  // [Parameter{name:'want', type:Want},              │       │
+│  │  //  Parameter{name:'launchParam', type:LaunchParam}]│       │
+│  └─────────────────────────────────────────────────────┘       │
+│         │                                                       │
+│         ▼                                                       │
+│  ┌─────────────────────────────────────────────────────┐       │
+│  │  Step 2: 为每个参数创建 Local 和初始化语句           │       │
+│  │                                                      │       │
+│  │  for (param of parameters) {                         │       │
+│  │      paramType = param.getType()                     │       │
+│  │                                                      │       │
+│  │      // 如果类型未知，从父类获取                     │       │
+│  │      if (!paramType) {                               │       │
+│  │          paramType = getParamTypeFromSuperClass()    │       │
+│  │      }                                               │       │
+│  │                                                      │       │
+│  │      // 创建 Local 变量                              │       │
+│  │      paramLocal = new Local('%param0', paramType)    │       │
+│  │                                                      │       │
+│  │      // 如果是 ClassType，生成 new 语句              │       │
+│  │      if (paramType instanceof ClassType) {           │       │
+│  │          block.addStmt: %param0 = new Want()         │       │
+│  │      }                                               │       │
+│  │  }                                                   │       │
+│  └─────────────────────────────────────────────────────┘       │
+│         │                                                       │
+│         ▼                                                       │
+│  ┌─────────────────────────────────────────────────────┐       │
+│  │  Step 3: 生成方法调用语句                            │       │
+│  │                                                      │       │
+│  │  invokeExpr = new ArkInstanceInvokeExpr(             │       │
+│  │      instanceLocal,     // ability                   │       │
+│  │      method.getSignature(), // onCreate 签名         │       │
+│  │      paramLocals        // [%param0, %param1]        │       │
+│  │  )                                                   │       │
+│  │                                                      │       │
+│  │  block.addStmt: ability.onCreate(%param0, %param1)   │       │
+│  └─────────────────────────────────────────────────────┘       │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**生成的 IR 示例**：
+
+```
+源代码中的生命周期方法：
+─────────────────────────────────────────────────────────────────
+class EntryAbility extends UIAbility {
+    onCreate(want: Want, launchParam: LaunchParam) { ... }
+    onWindowStageCreate(windowStage: WindowStage) { ... }
+    onForeground() { ... }
+}
+
+生成的 DummyMain IR（中间表示）：
+─────────────────────────────────────────────────────────────────
+// 实例化 Ability
+%ability0 = new EntryAbility()
+invoke %ability0.<init>()
+
+// onCreate 调用（含参数）
+%param0 = new Want()           // ← 参数对象创建
+%param1 = new LaunchParam()    // ← 参数对象创建
+invoke %ability0.onCreate(%param0, %param1)
+
+// onWindowStageCreate 调用（含参数）
+%param2 = new WindowStage()    // ← 参数对象创建
+invoke %ability0.onWindowStageCreate(%param2)
+
+// onForeground 调用（无参数）
+invoke %ability0.onForeground()
+```
+
+**参数类型获取的特殊处理**：
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│              为什么需要从父类获取参数类型？                       │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  问题场景：                                                      │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │  // 用户代码（可能没有显式写参数类型）                   │   │
+│  │  class MyAbility extends UIAbility {                     │   │
+│  │      onCreate(want, param) {  // ← 类型可能为 undefined  │   │
+│  │          ...                                             │   │
+│  │      }                                                   │   │
+│  │  }                                                       │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+│  解决方案：从 SDK 的父类方法获取类型                            │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │  // SDK 中的 UIAbility 基类（类型完整）                  │   │
+│  │  class UIAbility {                                       │   │
+│  │      onCreate(want: Want, launchParam: LaunchParam) {}   │   │
+│  │  }                          ↑            ↑               │   │
+│  │                             │            │               │   │
+│  │                    从这里获取参数类型                    │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**核心代码实现**：
+
+```typescript
+private addMethodInvocation(
+    block: BasicBlock,
+    instanceLocal: Local,
+    method: ArkMethod
+): void {
+    // Step 1: 为方法参数创建 Local 变量并初始化
+    const paramLocals = this.createParameterLocals(method, block);
+    
+    // Step 2: 生成方法调用语句
+    const invokeExpr = new ArkInstanceInvokeExpr(
+        instanceLocal,
+        method.getSignature(),
+        paramLocals  // ← 传入参数！
+    );
+    const invokeStmt = new ArkInvokeStmt(invokeExpr);
+    block.addStmt(invokeStmt);
+}
+
+private createParameterLocals(method: ArkMethod, block: BasicBlock): Local[] {
+    const paramLocals: Local[] = [];
+    
+    for (const param of method.getParameters()) {
+        let paramType = param.getType();
+        
+        // 类型未知时，从父类获取
+        if (!paramType) {
+            paramType = this.getParamTypeFromSuperClass(method, paramIndex);
+        }
+        
+        // 创建参数 Local
+        const paramLocal = new Local('%param' + index, paramType);
+        
+        // ClassType 需要 new 语句
+        if (paramType instanceof ClassType) {
+            const newExpr = new ArkNewExpr(paramType);
+            const assignStmt = new ArkAssignStmt(paramLocal, newExpr);
+            block.addStmt(assignStmt);
+        }
+        
+        paramLocals.push(paramLocal);
+    }
+    
+    return paramLocals;
+}
+```
+
+---
+
 ## 5. 完整流程解析
 
 ### 5.1 从代码到 DummyMain 的完整旅程
@@ -1883,13 +2108,13 @@ for (const component of components) {
 | `NavigationAnalyzer.extractWantTarget()` | Want 对象解析 | ✅ 完成 | 解析 abilityName 字段 |
 | `AbilityCollector.checkIsEntryAbility()` | 入口识别 | ✅ 完成 | 读取 module.json5 的 mainElement |
 | `ViewTreeCallbackExtractor.resolveCallbackMethod()` | 回调方法解析 | ✅ 完成 | 支持 MethodSignature/FieldRef/Constant |
+| `LifecycleModelCreator.addMethodInvocation()` | 参数生成 | ✅ 完成 | 自动生成 Want, WindowStage 等参数对象 |
 
 ### 8.2 待实现功能
 
 | 位置 | 功能 | 优先级 | 说明 |
 |------|------|--------|------|
-| `LifecycleModelCreator.addMethodInvocation()` | 参数生成 | 中 | 生成 Want, WindowStage 等参数 |
-| `LifecycleModelCreator.addUICallbackInvocation()` | 控件实例化 | 低 | 为每个控件创建实例 |
+| `LifecycleModelCreator.addUICallbackInvocation()` | 控件实例化 | 低 | 为每个控件创建实例（当前简化版可用） |
 | `resolveCallbackMethod()` Lambda 增强 | Lambda 完整支持 | 低 | 完整解析内联 Lambda 表达式 |
 | 路由参数数据流分析 | 复杂参数解析 | 低 | 处理动态计算的路由参数 |
 
@@ -1991,6 +2216,7 @@ solver.solve();
 | 0.2.0 | 2025-01-27 | 新增 NavigationAnalyzer 路由分析器 |
 | 0.3.0 | 2025-01-27 | 完善路由参数解析和 module.json5 入口识别 |
 | 0.4.0 | 2025-01-27 | 实现 resolveCallbackMethod() 回调方法解析 |
+| 0.5.0 | 2025-01-27 | 实现 addMethodInvocation() 生命周期方法参数生成 |
 
 ---
 

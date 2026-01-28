@@ -102,6 +102,9 @@ const cfg = dummyMain.getCfg();
 ├─────────────────────────────────────────────────────────────┤
 │ ④ 回调方法解析 (resolveCallbackMethod)                      │
 │    onClick(handler) → 解析 MethodSig/FieldRef → ArkMethod  │
+├─────────────────────────────────────────────────────────────┤
+│ ⑤ 方法参数生成 (addMethodInvocation)                        │
+│    onCreate() → 生成 new Want() → onCreate(want) 完整调用  │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -146,10 +149,10 @@ flowchart LR
 - [x] 完善 `extractWantTarget()` - 解析 Want 对象获取目标 Ability
 - [x] 实现 `checkIsEntryAbility()` - 从 module.json5 读取入口配置
 - [x] 实现 `resolveCallbackMethod()` - 回调方法解析（支持 MethodSignature/FieldRef/Constant）
+- [x] 实现 `addMethodInvocation()` - 自动生成生命周期方法参数（Want/WindowStage 等）
 
 ### 待完成
-- [ ] 实现 `addMethodInvocation()` - 生成方法参数
-- [ ] 实现 `addUICallbackInvocation()` - 控件实例化
+- [ ] 实现 `addUICallbackInvocation()` - 控件实例化（当前简化版可用）
 
 ---
 
@@ -164,6 +167,7 @@ flowchart LR
 
 | 日期 | 版本 | 说明 |
 |------|------|------|
+| 2025-01-27 | v0.5.0 | 实现 addMethodInvocation() 生命周期方法参数生成 |
 | 2025-01-27 | v0.4.0 | 实现 resolveCallbackMethod() 回调方法解析 |
 | 2025-01-27 | v0.3.0 | 完善路由参数解析和 module.json5 入口识别 |
 | 2025-01-27 | v0.2.0 | 新增 NavigationAnalyzer 路由分析器 |
