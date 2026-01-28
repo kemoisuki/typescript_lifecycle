@@ -103,8 +103,11 @@ const cfg = dummyMain.getCfg();
 │ ④ 回调方法解析 (resolveCallbackMethod)                      │
 │    onClick(handler) → 解析 MethodSig/FieldRef → ArkMethod  │
 ├─────────────────────────────────────────────────────────────┤
-│ ⑤ 方法参数生成 (addMethodInvocation)                        │
+│ ⑤ 生命周期参数生成 (addMethodInvocation)                    │
 │    onCreate() → 生成 new Want() → onCreate(want) 完整调用  │
+├─────────────────────────────────────────────────────────────┤
+│ ⑥ UI 回调参数生成 (addUICallbackInvocation)                 │
+│    handleClick() → 生成 new ClickEvent() → handleClick(e)  │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -150,9 +153,11 @@ flowchart LR
 - [x] 实现 `checkIsEntryAbility()` - 从 module.json5 读取入口配置
 - [x] 实现 `resolveCallbackMethod()` - 回调方法解析（支持 MethodSignature/FieldRef/Constant）
 - [x] 实现 `addMethodInvocation()` - 自动生成生命周期方法参数（Want/WindowStage 等）
+- [x] 实现 `addUICallbackInvocation()` - 自动生成 UI 回调参数（ClickEvent/TouchEvent 等）
 
-### 待完成
-- [ ] 实现 `addUICallbackInvocation()` - 控件实例化（当前简化版可用）
+### 可选扩展
+- [ ] Lambda 完整支持 - 完整解析内联 Lambda 表达式
+- [ ] 复杂路由参数解析 - 处理动态计算的路由参数
 
 ---
 
@@ -167,8 +172,9 @@ flowchart LR
 
 | 日期 | 版本 | 说明 |
 |------|------|------|
-| 2025-01-27 | v0.5.0 | 实现 addMethodInvocation() 生命周期方法参数生成 |
-| 2025-01-27 | v0.4.0 | 实现 resolveCallbackMethod() 回调方法解析 |
+| 2025-01-28 | v0.6.0 | 实现 addUICallbackInvocation() UI 回调参数生成 |
+| 2025-01-28 | v0.5.0 | 实现 addMethodInvocation() 生命周期方法参数生成 |
+| 2025-01-28 | v0.4.0 | 实现 resolveCallbackMethod() 回调方法解析 |
 | 2025-01-27 | v0.3.0 | 完善路由参数解析和 module.json5 入口识别 |
 | 2025-01-27 | v0.2.0 | 新增 NavigationAnalyzer 路由分析器 |
 | 2025-01-17 | v0.1.0 | 初始框架完成，包含基本结构和文档 |

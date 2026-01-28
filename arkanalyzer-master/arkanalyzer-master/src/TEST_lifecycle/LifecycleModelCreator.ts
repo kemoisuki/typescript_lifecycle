@@ -110,6 +110,7 @@ import {
     AbilityLifecycleStage,
     ComponentLifecycleStage,
     UICallbackInfo,
+    UIEventType,
     LifecycleModelConfig,
     DEFAULT_LIFECYCLE_CONFIG,
 } from './LifecycleTypes';
@@ -811,30 +812,173 @@ export class LifecycleModelCreator {
     }
 
     /**
-     * 添加 UI 回调调用语句
+     * 添加 UI 回调调用语句（含参数生成）
+     * 
+     * 工作流程：
+     * ```
+     * ┌─────────────────────────────────────────────────────────────────┐
+     * │            addUICallbackInvocation() 流程                       │
+     * ├─────────────────────────────────────────────────────────────────┤
+     * │                                                                 │
+     * │  输入: callback (如 Button.onClick -> handleClick)              │
+     * │         │                                                       │
+     * │         ▼                                                       │
+     * │  获取回调方法: callback.callbackMethod                          │
+     * │         │                                                       │
+     * │         ▼                                                       │
+     * │  为回调参数创建 Local（如 ClickEvent）:                         │
+     * │  ┌─────────────────────────────────────────────┐               │
+     * │  │  %event0 = new ClickEvent()                 │               │
+     * │  └─────────────────────────────────────────────┘               │
+     * │         │                                                       │
+     * │         ▼                                                       │
+     * │  生成回调调用语句:                                               │
+     * │  ┌─────────────────────────────────────────────┐               │
+     * │  │  component.handleClick(%event0)             │               │
+     * │  └─────────────────────────────────────────────┘               │
+     * │                                                                 │
+     * └─────────────────────────────────────────────────────────────────┘
+     * ```
+     * 
+     * 支持的回调类型：
+     * - onClick(event: ClickEvent)
+     * - onTouch(event: TouchEvent)
+     * - onChange(value: string)
+     * - onAppear() / onDisAppear() - 无参数
      */
     private addUICallbackInvocation(
         block: BasicBlock,
         componentLocal: Local,
         callback: UICallbackInfo
     ): void {
-        // TODO: 实现精细化的 UI 回调调用
-        // 当前简化：直接调用回调方法
-        //
-        // 完整实现思路：
-        // 1. 根据 callback.componentType 创建控件实例
-        // 2. 调用控件实例的 callback.eventType 方法
-        // 3. 传入 callback.callbackMethod 作为参数
-        
-        if (callback.callbackMethod) {
-            const invokeExpr = new ArkInstanceInvokeExpr(
-                componentLocal,
-                callback.callbackMethod.getSignature(),
-                []
-            );
-            const invokeStmt = new ArkInvokeStmt(invokeExpr);
-            block.addStmt(invokeStmt);
+        if (!callback.callbackMethod) {
+            return;
         }
+        
+        // Step 1: 为回调方法的参数创建 Local 变量并初始化
+        const paramLocals = this.createCallbackParameterLocals(callback, block);
+        
+        // Step 2: 生成回调方法调用语句
+        const invokeExpr = new ArkInstanceInvokeExpr(
+            componentLocal,
+            callback.callbackMethod.getSignature(),
+            paramLocals
+        );
+        const invokeStmt = new ArkInvokeStmt(invokeExpr);
+        block.addStmt(invokeStmt);
+        
+        // 打印调试信息
+        const paramInfo = paramLocals.length > 0 
+            ? `(${paramLocals.map(l => l.getName()).join(', ')})` 
+            : '()';
+        console.log(`[LifecycleModelCreator] ${callback.componentType}.${callback.eventType} -> ${callback.callbackMethod.getName()}${paramInfo}`);
+    }
+    
+    /**
+     * 为 UI 回调方法的参数创建 Local 变量
+     * 
+     * 常见的回调参数类型：
+     * - ClickEvent: onClick 事件
+     * - TouchEvent: onTouch 事件
+     * - string/number: onChange 等值变化事件
+     * 
+     * @param callback UI 回调信息
+     * @param block 添加语句的基本块
+     * @returns 参数 Local 数组
+     */
+    private createCallbackParameterLocals(
+        callback: UICallbackInfo,
+        block: BasicBlock
+    ): Local[] {
+        const paramLocals: Local[] = [];
+        
+        if (!callback.callbackMethod) {
+            return paramLocals;
+        }
+        
+        const parameters = callback.callbackMethod.getParameters();
+        
+        // 如果回调方法没有参数，直接返回空数组
+        if (parameters.length === 0) {
+            return paramLocals;
+        }
+        
+        for (let i = 0; i < parameters.length; i++) {
+            const param = parameters[i];
+            let paramType = param.getType();
+            
+            // 如果参数类型未知，尝试根据事件类型推断
+            if (!paramType) {
+                paramType = this.inferEventParamType(callback.eventType);
+            }
+            
+            // 如果仍然无法获取类型，跳过该参数
+            if (!paramType) {
+                console.log(`[LifecycleModelCreator] Skipping callback param ${i}: unknown type`);
+                continue;
+            }
+            
+            // 创建参数 Local 变量
+            const paramLocal = new Local(
+                `%event${this.tempLocalIndex++}`,
+                paramType
+            );
+            
+            // 如果是 ClassType，生成 new 语句
+            if (paramType instanceof ClassType) {
+                const newExpr = new ArkNewExpr(paramType);
+                const assignStmt = new ArkAssignStmt(paramLocal, newExpr);
+                paramLocal.setDeclaringStmt(assignStmt);
+                block.addStmt(assignStmt);
+                
+                // 尝试调用构造函数
+                this.tryInvokeConstructor(block, paramLocal, paramType);
+            }
+            
+            paramLocals.push(paramLocal);
+        }
+        
+        return paramLocals;
+    }
+    
+    /**
+     * 根据事件类型推断参数类型
+     * 
+     * 当回调方法的参数类型未知时，根据事件类型名称推断可能的参数类型
+     * 
+     * @param eventType 事件类型（如 'onClick', 'onTouch'）
+     * @returns 推断的参数类型（ClassType）或 null
+     */
+    private inferEventParamType(eventType: UIEventType): ClassType | null {
+        // 事件类型到参数类名的映射
+        const eventParamMap: Record<string, string> = {
+            'onClick': 'ClickEvent',
+            'onTouch': 'TouchEvent',
+            'onAppear': '',           // 无参数
+            'onDisAppear': '',        // 无参数
+            'onChange': 'string',     // 基本类型，不创建对象
+            'onFocus': 'FocusEvent',
+            'onBlur': 'BlurEvent',
+            'onAreaChange': 'Area',
+        };
+        
+        const paramClassName = eventParamMap[eventType];
+        
+        // 无参数或基本类型的情况
+        if (!paramClassName || paramClassName === 'string') {
+            return null;
+        }
+        
+        // 尝试从 Scene 中查找对应的类
+        for (const arkClass of this.scene.getClasses()) {
+            if (arkClass.getName() === paramClassName) {
+                return new ClassType(arkClass.getSignature());
+            }
+        }
+        
+        // 如果找不到类，返回 null（跳过该参数）
+        console.log(`[LifecycleModelCreator] Event class not found: ${paramClassName}`);
+        return null;
     }
 
     /**

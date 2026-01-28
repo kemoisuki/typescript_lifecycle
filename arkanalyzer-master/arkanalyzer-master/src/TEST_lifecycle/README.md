@@ -1744,6 +1744,251 @@ private addMethodInvocation(
         method.getSignature(),
         paramLocals  // ← 传入参数！
     );
+    block.addStmt(new ArkInvokeStmt(invokeExpr));
+}
+```
+
+---
+
+#### 4.6.2 addUICallbackInvocation() — UI 回调参数生成（详解）
+
+**功能**：为 UI 事件回调（如 onClick、onTouch）生成调用语句，并自动创建事件参数对象。
+
+**为什么需要回调参数生成？**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    UI 回调参数的重要性                           │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  开发者代码：                                                    │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │  Button('Click')                                         │   │
+│  │      .onClick((event: ClickEvent) => {                   │   │
+│  │          let x = event.screenX;   // ← 需要 event 参数   │   │
+│  │          let y = event.screenY;                          │   │
+│  │          sendLocation(x, y);      // ← 敏感操作          │   │
+│  │      })                                                  │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+│  ───────────────────────────────────────────────────────────── │
+│                                                                 │
+│  没有参数生成时：                                                │
+│  ┌─────────────────────────────────────────┐                   │
+│  │  component.handleClick()  ← 没有 event  │                   │
+│  │                                          │                   │
+│  │  静态分析：无法追踪 event.screenX ❌     │                   │
+│  └─────────────────────────────────────────┘                   │
+│                                                                 │
+│  有参数生成时：                                                  │
+│  ┌─────────────────────────────────────────┐                   │
+│  │  %event0 = new ClickEvent()             │                   │
+│  │  component.handleClick(%event0)         │                   │
+│  │                                          │                   │
+│  │  静态分析：可追踪 event → screenX → sendLocation ✅ │       │
+│  └─────────────────────────────────────────┘                   │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**常见 UI 事件及其参数类型**：
+
+| 事件类型 | 方法名 | 参数类型 | 说明 |
+|----------|--------|----------|------|
+| 点击事件 | `onClick` | `ClickEvent` | 包含坐标、时间戳等 |
+| 触摸事件 | `onTouch` | `TouchEvent` | 包含触摸点信息 |
+| 出现事件 | `onAppear` | 无 | 组件出现时触发 |
+| 消失事件 | `onDisAppear` | 无 | 组件消失时触发 |
+| 值变化 | `onChange` | `string/number` | 输入值变化 |
+| 焦点事件 | `onFocus/onBlur` | `FocusEvent` | 焦点变化 |
+
+**实现流程图**：
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│           addUICallbackInvocation() 完整工作流程                 │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  输入: callback { componentType: 'Button',                      │
+│                   eventType: 'onClick',                         │
+│                   callbackMethod: handleClick }                 │
+│         │                                                       │
+│         ▼                                                       │
+│  ┌─────────────────────────────────────────────────────┐       │
+│  │  Step 1: 获取回调方法的参数列表                      │       │
+│  │  parameters = callback.callbackMethod.getParameters()│       │
+│  │  // [Parameter{name:'event', type:ClickEvent}]       │       │
+│  └─────────────────────────────────────────────────────┘       │
+│         │                                                       │
+│         ▼                                                       │
+│  ┌─────────────────────────────────────────────────────┐       │
+│  │  Step 2: 为事件参数创建 Local                        │       │
+│  │                                                      │       │
+│  │  if (参数类型未知) {                                 │       │
+│  │      // 根据事件类型推断                             │       │
+│  │      paramType = inferEventParamType('onClick')      │       │
+│  │      // → ClickEvent                                 │       │
+│  │  }                                                   │       │
+│  │                                                      │       │
+│  │  %event0 = new Local('%event0', ClickEvent)          │       │
+│  │  block.addStmt: %event0 = new ClickEvent()           │       │
+│  └─────────────────────────────────────────────────────┘       │
+│         │                                                       │
+│         ▼                                                       │
+│  ┌─────────────────────────────────────────────────────┐       │
+│  │  Step 3: 生成回调调用语句                            │       │
+│  │                                                      │       │
+│  │  invokeExpr = new ArkInstanceInvokeExpr(             │       │
+│  │      componentLocal,    // Component 实例            │       │
+│  │      handleClick,       // 回调方法签名              │       │
+│  │      [%event0]          // 事件参数                  │       │
+│  │  )                                                   │       │
+│  │                                                      │       │
+│  │  block.addStmt: component.handleClick(%event0)       │       │
+│  └─────────────────────────────────────────────────────┘       │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**事件类型推断机制**：
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│              inferEventParamType() - 事件类型推断                │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  当回调方法的参数类型未知时（Lambda 常见），                     │
+│  根据事件类型名称推断参数类型：                                  │
+│                                                                 │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │  事件类型映射表:                                         │   │
+│  │                                                          │   │
+│  │  'onClick'    → ClickEvent                               │   │
+│  │  'onTouch'    → TouchEvent                               │   │
+│  │  'onFocus'    → FocusEvent                               │   │
+│  │  'onBlur'     → BlurEvent                                │   │
+│  │  'onAppear'   → (无参数)                                 │   │
+│  │  'onDisAppear'→ (无参数)                                 │   │
+│  │  'onChange'   → string (基本类型，不创建对象)            │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+│  使用场景示例：                                                  │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │  // Lambda 回调（参数类型可能丢失）                      │   │
+│  │  Button().onClick((event) => { ... })                    │   │
+│  │                      ↑                                   │   │
+│  │                      类型未知                            │   │
+│  │                                                          │   │
+│  │  → 根据 'onClick' 推断为 ClickEvent                      │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**生成的 IR 示例**：
+
+```
+源代码中的 UI 回调：
+─────────────────────────────────────────────────────────────────
+@Component
+struct MyComponent {
+    handleClick(event: ClickEvent) {
+        console.log(event.screenX);
+    }
+    
+    handleTouch(event: TouchEvent) {
+        console.log(event.touches);
+    }
+    
+    onPageShow() {
+        console.log('page show');
+    }
+    
+    build() {
+        Column() {
+            Button('Click').onClick(this.handleClick)
+            Text('Touch').onTouch(this.handleTouch)
+        }
+    }
+}
+
+生成的 DummyMain IR：
+─────────────────────────────────────────────────────────────────
+// Component 实例化
+%component0 = new MyComponent()
+invoke %component0.<init>()
+
+// 生命周期方法
+invoke %component0.aboutToAppear()
+invoke %component0.build()
+
+// onClick 回调（含 ClickEvent 参数）
+%event0 = new ClickEvent()       // ← 事件参数创建
+invoke %component0.handleClick(%event0)
+
+// onTouch 回调（含 TouchEvent 参数）
+%event1 = new TouchEvent()       // ← 事件参数创建
+invoke %component0.handleTouch(%event1)
+
+// onPageShow（无参数）
+invoke %component0.onPageShow()
+```
+
+**核心代码实现**：
+
+```typescript
+private addUICallbackInvocation(
+    block: BasicBlock,
+    componentLocal: Local,
+    callback: UICallbackInfo
+): void {
+    if (!callback.callbackMethod) return;
+    
+    // Step 1: 为回调参数创建 Local
+    const paramLocals = this.createCallbackParameterLocals(callback, block);
+    
+    // Step 2: 生成调用语句
+    const invokeExpr = new ArkInstanceInvokeExpr(
+        componentLocal,
+        callback.callbackMethod.getSignature(),
+        paramLocals  // ← 传入事件参数！
+    );
+    block.addStmt(new ArkInvokeStmt(invokeExpr));
+}
+
+private inferEventParamType(eventType: UIEventType): ClassType | null {
+    const eventParamMap = {
+        'onClick': 'ClickEvent',
+        'onTouch': 'TouchEvent',
+        'onFocus': 'FocusEvent',
+        'onAppear': '',  // 无参数
+        // ...
+    };
+    
+    const className = eventParamMap[eventType];
+    if (!className) return null;
+    
+    // 从 Scene 查找事件类
+    const arkClass = this.scene.getClasses()
+        .find(c => c.getName() === className);
+    
+    return arkClass ? new ClassType(arkClass.getSignature()) : null;
+}
+```
+
+---
+
+**核心代码实现（续 addMethodInvocation）**：
+
+```typescript
+private createParameterLocals(method: ArkMethod, block: BasicBlock): Local[] {
+    
+    // Step 2: 生成方法调用语句
+    const invokeExpr = new ArkInstanceInvokeExpr(
+        instanceLocal,
+        method.getSignature(),
+        paramLocals  // ← 传入参数！
+    );
     const invokeStmt = new ArkInvokeStmt(invokeExpr);
     block.addStmt(invokeStmt);
 }
@@ -2108,15 +2353,16 @@ for (const component of components) {
 | `NavigationAnalyzer.extractWantTarget()` | Want 对象解析 | ✅ 完成 | 解析 abilityName 字段 |
 | `AbilityCollector.checkIsEntryAbility()` | 入口识别 | ✅ 完成 | 读取 module.json5 的 mainElement |
 | `ViewTreeCallbackExtractor.resolveCallbackMethod()` | 回调方法解析 | ✅ 完成 | 支持 MethodSignature/FieldRef/Constant |
-| `LifecycleModelCreator.addMethodInvocation()` | 参数生成 | ✅ 完成 | 自动生成 Want, WindowStage 等参数对象 |
+| `LifecycleModelCreator.addMethodInvocation()` | 生命周期参数生成 | ✅ 完成 | 自动生成 Want, WindowStage 等参数 |
+| `LifecycleModelCreator.addUICallbackInvocation()` | UI 回调参数生成 | ✅ 完成 | 自动生成 ClickEvent, TouchEvent 等参数 |
 
-### 8.2 待实现功能
+### 8.2 待实现功能（可选扩展）
 
 | 位置 | 功能 | 优先级 | 说明 |
 |------|------|--------|------|
-| `LifecycleModelCreator.addUICallbackInvocation()` | 控件实例化 | 低 | 为每个控件创建实例（当前简化版可用） |
 | `resolveCallbackMethod()` Lambda 增强 | Lambda 完整支持 | 低 | 完整解析内联 Lambda 表达式 |
 | 路由参数数据流分析 | 复杂参数解析 | 低 | 处理动态计算的路由参数 |
+| 控件实例创建 | UI 控件实例化 | 低 | 为每个控件创建实例（非必需） |
 
 ### 8.3 扩展建议
 
@@ -2217,6 +2463,7 @@ solver.solve();
 | 0.3.0 | 2025-01-27 | 完善路由参数解析和 module.json5 入口识别 |
 | 0.4.0 | 2025-01-27 | 实现 resolveCallbackMethod() 回调方法解析 |
 | 0.5.0 | 2025-01-27 | 实现 addMethodInvocation() 生命周期方法参数生成 |
+| 0.6.0 | 2025-01-28 | 实现 addUICallbackInvocation() UI 回调参数生成 |
 
 ---
 
