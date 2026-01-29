@@ -1,0 +1,23 @@
+{
+  "module": {
+    "name": "entry",
+    "type": "entry",
+    "description": "测试模块",
+    "mainElement": "EntryAbility",
+    "deviceTypes": [
+      "phone"
+    ],
+    "abilities": [
+      {
+        "name": "EntryAbility",
+        "srcEntry": "./ets/EntryAbility.ets",
+        "description": "入口 Ability",
+        "icon": "$media:icon",
+        "label": "$string:EntryAbility_label",
+        "startWindowIcon": "$media:icon",
+        "startWindowBackground": "$color:start_window_background",
+        "exported": true
+      }
+    ]
+  }
+}

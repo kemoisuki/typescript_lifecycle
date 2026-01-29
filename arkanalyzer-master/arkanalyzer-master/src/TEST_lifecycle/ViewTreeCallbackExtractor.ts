@@ -527,45 +527,6 @@ export class ViewTreeCallbackExtractor {
         return stateValues;
     }
 }
-        
-        for (const value of relatedValues) {
-            if (value instanceof MethodSignature) {
-                const method = this.scene.getMethod(value);
-                if (method) {
-                    return method;
-                }
-            }
-        }
-        
-        // 备选：尝试从语句中提取
-        // TODO: 处理匿名函数的情况
-        
-        return null;
-    }
-
-    /**
-     * 收集回调相关的状态变量
-     * 
-     * @param node ViewTree 节点
-     * @param attributeValue 属性值
-     * @returns 相关的状态变量数组
-     */
-    private collectRelatedStateValues(
-        node: ViewTreeNode,
-        attributeValue: [any, (Constant | ArkInstanceFieldRef | MethodSignature)[]]
-    ): ArkField[] {
-        const stateValues: ArkField[] = [];
-        
-        // 从 ViewTreeNode 的 stateValues 中获取
-        for (const field of node.stateValues) {
-            stateValues.push(field);
-        }
-        
-        // TODO: 从 attributeValue 中进一步分析
-        
-        return stateValues;
-    }
-}
 
 // ============================================================================
 // 导出辅助函数

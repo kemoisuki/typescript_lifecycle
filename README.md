@@ -161,6 +161,36 @@ flowchart LR
 
 ---
 
+## 🧪 测试
+
+### 测试结果
+
+```
+ Test Files  1 passed (1)
+      Tests  17 passed (17)
+   Duration  5.92s
+```
+
+### 测试覆盖
+
+| 层级 | 测试内容 | 状态 |
+|------|---------|:----:|
+| L1 单元测试 | AbilityCollector, ViewTreeCallbackExtractor, NavigationAnalyzer | ✅ |
+| L2 集成测试 | 模块间协作 | ✅ |
+| L3 端到端测试 | 完整 DummyMain 生成 | ✅ |
+
+### 运行测试
+
+```bash
+cd arkanalyzer-master/arkanalyzer-master
+npm install                                          # 首次需要
+npx vitest run tests/unit/lifecycle/ --reporter=verbose
+```
+
+详细测试说明见 `tests/resources/lifecycle/README.md`
+
+---
+
 ## 👥 贡献者
 
 - **YiZhou** - 项目负责人
@@ -172,6 +202,7 @@ flowchart LR
 
 | 日期 | 版本 | 说明 |
 |------|------|------|
+| 2025-01-28 | v0.7.0 | 添加完整测试套件，17 项测试全部通过 |
 | 2025-01-28 | v0.6.0 | 实现 addUICallbackInvocation() UI 回调参数生成 |
 | 2025-01-28 | v0.5.0 | 实现 addMethodInvocation() 生命周期方法参数生成 |
 | 2025-01-28 | v0.4.0 | 实现 resolveCallbackMethod() 回调方法解析 |

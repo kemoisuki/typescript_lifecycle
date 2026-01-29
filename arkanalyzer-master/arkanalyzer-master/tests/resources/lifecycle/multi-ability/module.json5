@@ -1,0 +1,19 @@
+{
+  "module": {
+    "name": "entry",
+    "type": "entry",
+    "mainElement": "EntryAbility",
+    "abilities": [
+      {
+        "name": "EntryAbility",
+        "srcEntry": "./ets/EntryAbility.ets",
+        "exported": true
+      },
+      {
+        "name": "SecondAbility",
+        "srcEntry": "./ets/SecondAbility.ets",
+        "exported": false
+      }
+    ]
+  }
+}
